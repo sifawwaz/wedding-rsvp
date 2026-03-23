@@ -78,7 +78,6 @@ export default function AdminPage() {
           .maybeSingle();
 
         if (error) {
-          console.error("Error checking token:", error);
           alert("Could not generate guest token.");
           setAddingGuest(false);
           return;
@@ -103,12 +102,12 @@ export default function AdminPage() {
         rsvp_link: rsvpLink,
         rsvp_status: "pending",
         attending_count: 0,
+        attending_names: null,
       };
 
       const { error } = await supabase.from("guests").insert([payload]);
 
       if (error) {
-        console.error("Error adding guest:", error);
         alert("Could not add guest.");
         setAddingGuest(false);
         return;
@@ -137,9 +136,7 @@ export default function AdminPage() {
 
   const stats = useMemo(() => {
     const attending = guests.filter((g) => g.rsvp_status === "attending").length;
-    const declined = guests.filter(
-      (g) => g.rsvp_status === "declined" || g.rsvp_status === "not_attending"
-    ).length;
+    const declined = guests.filter((g) => g.rsvp_status === "declined").length;
     const pending = guests.filter(
       (g) => !g.rsvp_status || g.rsvp_status === "pending"
     ).length;
@@ -158,9 +155,7 @@ export default function AdminPage() {
     }
 
     if (filter === "declined") {
-      return guests.filter(
-        (g) => g.rsvp_status === "declined" || g.rsvp_status === "not_attending"
-      );
+      return guests.filter((g) => g.rsvp_status === "declined");
     }
 
     if (filter === "pending") {
@@ -311,10 +306,16 @@ export default function AdminPage() {
                   Family
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-zinc-700">
-                  Status
+                  Invited
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-zinc-700">
-                  Count
+                  Attending
+                </th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-zinc-700">
+                  Names
+                </th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-zinc-700">
+                  Status
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-zinc-700">
                   RSVP Link
@@ -339,23 +340,30 @@ export default function AdminPage() {
                       {guest.family || "-"}
                     </td>
 
+                    <td className="px-4 py-3 text-zinc-700">
+                      {guest.max_guests ?? 1}
+                    </td>
+
+                    <td className="px-4 py-3 text-zinc-700">
+                      {guest.attending_count ?? 0}
+                    </td>
+
+                    <td className="px-4 py-3 text-zinc-700">
+                      {guest.attending_names || "-"}
+                    </td>
+
                     <td className="px-4 py-3">
                       <span
                         className={`inline-block rounded-full px-3 py-1 text-sm font-medium ${
                           guest.rsvp_status === "attending"
                             ? "bg-green-100 text-green-700"
-                            : guest.rsvp_status === "declined" ||
-                              guest.rsvp_status === "not_attending"
+                            : guest.rsvp_status === "declined"
                             ? "bg-red-100 text-red-700"
                             : "bg-amber-100 text-amber-700"
                         }`}
                       >
                         {guest.rsvp_status || "pending"}
                       </span>
-                    </td>
-
-                    <td className="px-4 py-3 text-zinc-700">
-                      {guest.attending_count ?? 0}
                     </td>
 
                     <td className="px-4 py-3">
@@ -400,7 +408,7 @@ export default function AdminPage() {
               {filteredGuests.length === 0 && (
                 <tr>
                   <td
-                    colSpan="6"
+                    colSpan="8"
                     className="px-4 py-8 text-center text-zinc-500"
                   >
                     No guests found for this filter.
