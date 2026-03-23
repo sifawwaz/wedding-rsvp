@@ -74,7 +74,7 @@ export default function RSVPPage() {
             Wedding RSVP
           </p>
           <h1 className="text-3xl md:text-5xl font-bold text-rose-900 leading-tight mb-4">
-            Welcome to Ayman & Abdul Bari&apos;s RSVP page!
+            Welcome to Ayman & Abdul Bari&apos;s Wedding RSVP page!
           </h1>
           <p className="text-base md:text-lg text-zinc-700 max-w-xl mx-auto leading-8">
             Please select whether you will be attending or not.
