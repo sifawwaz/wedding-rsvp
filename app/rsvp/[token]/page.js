@@ -42,50 +42,88 @@ export default function RSVPPage() {
     }
   };
 
-  if (loading) return <div className="p-10">Loading...</div>;
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-rose-50 text-rose-900">
+        <p className="text-lg font-medium">Loading your invitation...</p>
+      </div>
+    );
+  }
 
   if (!guest) {
-    return <div className="p-10 text-center">❌ Guest not found</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-rose-50 px-6">
+        <div className="bg-white p-8 rounded-3xl shadow-lg text-center max-w-md">
+          <h1 className="text-2xl font-bold text-rose-900 mb-3">
+            Invitation Not Found
+          </h1>
+          <p className="text-zinc-600">
+            This RSVP link is invalid or no longer available.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-500 to-pink-500 text-white">
-      <div className="bg-white text-black p-10 rounded-2xl shadow-xl text-center">
-        <h1 className="text-2xl font-bold mb-4">
-          Hi {guest.invite_name || guest.family || "Guest"} 👋
-        </h1>
+    <div className="min-h-screen bg-gradient-to-br from-rose-100 via-pink-100 to-amber-50 flex items-center justify-center px-6 py-12">
+      <div className="w-full max-w-2xl bg-white/90 backdrop-blur rounded-[2rem] shadow-2xl border border-rose-100 p-8 md:p-12 text-center">
+        <div className="mb-6">
+          <div className="text-4xl mb-3">🌸✨💍✨🌸</div>
+          <p className="uppercase tracking-[0.35em] text-xs text-rose-500 font-semibold mb-3">
+            Wedding RSVP
+          </p>
+          <h1 className="text-3xl md:text-5xl font-bold text-rose-900 leading-tight mb-4">
+            Welcome to Ayman & Abdul Bari&apos;s RSVP page!
+          </h1>
+          <p className="text-base md:text-lg text-zinc-700 max-w-xl mx-auto leading-8">
+            Please select whether you will be attending or not.
+          </p>
+        </div>
+
+        <div className="bg-rose-50 rounded-2xl px-6 py-5 mb-8 border border-rose-100">
+          <p className="text-sm uppercase tracking-[0.25em] text-rose-500 mb-2">
+            Invitation For
+          </p>
+          <h2 className="text-2xl md:text-3xl font-semibold text-zinc-900">
+            {guest.invite_name || guest.family || "Guest"}
+          </h2>
+        </div>
 
         {guest.rsvp_status !== "pending" ? (
-          <div>
-            <p className="text-lg mb-4">✅ You already responded:</p>
-
-            <p className="text-xl font-semibold">
+          <div className="space-y-4">
+            <p className="text-lg text-zinc-700">Your response has been recorded.</p>
+            <div className="inline-block rounded-full px-6 py-3 text-lg font-semibold bg-rose-100 text-rose-900">
               {guest.rsvp_status === "attending"
                 ? "🎉 Attending"
-                : "❌ Not Attending"}
-            </p>
+                : "💌 Not Attending"}
+            </div>
           </div>
         ) : (
           <>
-            <p className="mb-6">Will you attend?</p>
+            <p className="text-zinc-600 mb-8 text-lg">
+              We would be honored to celebrate with you.
+            </p>
 
-            <div className="flex gap-4 justify-center">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button
                 onClick={() => handleRSVP("attending")}
-                className="bg-green-500 px-6 py-2 rounded-lg text-white"
+                className="px-8 py-3 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white font-semibold shadow-md transition"
               >
-                Yes
+                Yes, I Will Attend
               </button>
 
               <button
                 onClick={() => handleRSVP("declined")}
-                className="bg-red-500 px-6 py-2 rounded-lg text-white"
+                className="px-8 py-3 rounded-full bg-rose-500 hover:bg-rose-600 text-white font-semibold shadow-md transition"
               >
-                No
+                Sorry, I Cannot Attend
               </button>
             </div>
           </>
         )}
+
+        <div className="mt-10 text-3xl">🌷🤍🌷</div>
       </div>
     </div>
   );
