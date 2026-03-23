@@ -175,9 +175,7 @@ export default function AdminPage() {
                   <tr key={g.id} className="border-t align-top">
                     <td className="px-4 py-3">{g.invite_name || "-"}</td>
                     <td className="px-4 py-3">{g.family || "-"}</td>
-                    <td className="px-4 py-3">
-                      {g.rsvp_status || "pending"}
-                    </td>
+                    <td className="px-4 py-3">{g.rsvp_status || "pending"}</td>
                     <td className="px-4 py-3">{g.attending_count ?? 0}</td>
                     <td className="px-4 py-3">
                       <a
@@ -186,7 +184,7 @@ export default function AdminPage() {
                         rel="noopener noreferrer"
                         className="text-blue-600 underline break-all"
                       >
-                        Open Link
+                        {links.url}
                       </a>
                     </td>
                     <td className="px-4 py-3">
