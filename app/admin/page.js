@@ -8,6 +8,11 @@ export default function AdminPage() {
   const [filter, setFilter] = useState("all");
   const [copiedId, setCopiedId] = useState(null);
 
+  const [newInviteName, setNewInviteName] = useState("");
+  const [newFamily, setNewFamily] = useState("");
+  const [newMaxGuests, setNewMaxGuests] = useState(1);
+  const [addingGuest, setAddingGuest] = useState(false);
+
   useEffect(() => {
     fetchGuests();
   }, []);
@@ -29,6 +34,18 @@ export default function AdminPage() {
   const baseUrl =
     process.env.NEXT_PUBLIC_SITE_URL || "https://wedding-rsvp.vercel.app";
 
+  const generateToken = (length = 12) => {
+    const chars =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    let result = "";
+
+    for (let i = 0; i < length; i += 1) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+
+    return result;
+  };
+
   const generateLinks = (guest) => {
     const url = `${baseUrl}/rsvp/${guest.token}`;
     const displayName = guest.invite_name || guest.family || "Guest";
@@ -39,6 +56,83 @@ export default function AdminPage() {
       whatsapp: `https://wa.me/?text=${encodeURIComponent(message)}`,
       sms: `sms:?body=${encodeURIComponent(message)}`,
     };
+  };
+
+  const addGuest = async () => {
+    if (!newInviteName.trim()) {
+      alert("Please enter an invite name.");
+      return;
+    }
+
+    setAddingGuest(true);
+
+    try {
+      let token = generateToken();
+      let exists = true;
+
+      while (exists) {
+        const { data, error } = await supabase
+          .from("guests")
+          .select("id")
+          .eq("token", token)
+          .maybeSingle();
+
+        if (error) {
+          console.error("Error checking token:", error);
+          alert("Could not generate guest token.");
+          setAddingGuest(false);
+          return;
+        }
+
+        if (!data) {
+          exists = false;
+        } else {
+          token = generateToken();
+        }
+      }
+
+      const rsvpPath = `/rsvp/${token}`;
+      const rsvpLink = `${baseUrl}${rsvpPath}`;
+
+      const payload = {
+        invite_name: newInviteName.trim(),
+        family: newFamily.trim() || null,
+        max_guests: Number(newMaxGuests) || 1,
+        token,
+        rsvp_path: rsvpPath,
+        rsvp_link: rsvpLink,
+        rsvp_status: "pending",
+        attending_count: 0,
+      };
+
+      const { error } = await supabase.from("guests").insert([payload]);
+
+      if (error) {
+        console.error("Error adding guest:", error);
+        alert("Could not add guest.");
+        setAddingGuest(false);
+        return;
+      }
+
+      setNewInviteName("");
+      setNewFamily("");
+      setNewMaxGuests(1);
+      await fetchGuests();
+    } finally {
+      setAddingGuest(false);
+    }
+  };
+
+  const copyLink = async (guest) => {
+    const { url } = generateLinks(guest);
+
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedId(guest.id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (error) {
+      console.error("Failed to copy link:", error);
+    }
   };
 
   const stats = useMemo(() => {
@@ -78,45 +172,85 @@ export default function AdminPage() {
     return guests;
   }, [guests, filter]);
 
-  const copyLink = async (guest) => {
-    const { url } = generateLinks(guest);
-
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopiedId(guest.id);
-      setTimeout(() => setCopiedId(null), 2000);
-    } catch (error) {
-      console.error("Failed to copy link:", error);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-zinc-50 p-6 md:p-10">
       <div className="mx-auto max-w-7xl">
-        <h1 className="mb-2 text-3xl font-bold text-zinc-900">RSVP Dashboard</h1>
+        <h1 className="mb-2 text-3xl font-bold text-zinc-900">
+          RSVP Dashboard
+        </h1>
         <p className="mb-8 text-zinc-600">
-          Manage invitations, copy RSVP links, and track live responses.
+          Manage invitations, create guests, copy RSVP links, and track live
+          responses.
         </p>
+
+        <div className="mb-8 rounded-2xl border bg-white p-5 shadow-sm">
+          <h2 className="mb-4 text-xl font-semibold text-zinc-900">
+            Add Guest
+          </h2>
+
+          <div className="grid gap-4 md:grid-cols-4">
+            <input
+              type="text"
+              placeholder="Invite name"
+              value={newInviteName}
+              onChange={(e) => setNewInviteName(e.target.value)}
+              className="rounded-lg border px-4 py-3"
+            />
+
+            <input
+              type="text"
+              placeholder="Family (optional)"
+              value={newFamily}
+              onChange={(e) => setNewFamily(e.target.value)}
+              className="rounded-lg border px-4 py-3"
+            />
+
+            <input
+              type="number"
+              min="1"
+              placeholder="Max guests"
+              value={newMaxGuests}
+              onChange={(e) => setNewMaxGuests(e.target.value)}
+              className="rounded-lg border px-4 py-3"
+            />
+
+            <button
+              onClick={addGuest}
+              disabled={addingGuest}
+              className="rounded-lg bg-black px-4 py-3 text-white hover:bg-zinc-800 disabled:opacity-60"
+            >
+              {addingGuest ? "Adding..." : "Add Guest"}
+            </button>
+          </div>
+        </div>
 
         <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-2xl border bg-white p-5 shadow-sm">
             <p className="text-sm text-zinc-500">Total Invites</p>
-            <p className="mt-2 text-3xl font-bold text-zinc-900">{stats.total}</p>
+            <p className="mt-2 text-3xl font-bold text-zinc-900">
+              {stats.total}
+            </p>
           </div>
 
           <div className="rounded-2xl border bg-white p-5 shadow-sm">
             <p className="text-sm text-zinc-500">Attending</p>
-            <p className="mt-2 text-3xl font-bold text-green-600">{stats.attending}</p>
+            <p className="mt-2 text-3xl font-bold text-green-600">
+              {stats.attending}
+            </p>
           </div>
 
           <div className="rounded-2xl border bg-white p-5 shadow-sm">
             <p className="text-sm text-zinc-500">Not Attending</p>
-            <p className="mt-2 text-3xl font-bold text-red-600">{stats.declined}</p>
+            <p className="mt-2 text-3xl font-bold text-red-600">
+              {stats.declined}
+            </p>
           </div>
 
           <div className="rounded-2xl border bg-white p-5 shadow-sm">
             <p className="text-sm text-zinc-500">Pending</p>
-            <p className="mt-2 text-3xl font-bold text-amber-600">{stats.pending}</p>
+            <p className="mt-2 text-3xl font-bold text-amber-600">
+              {stats.pending}
+            </p>
           </div>
         </div>
 
@@ -124,7 +258,9 @@ export default function AdminPage() {
           <button
             onClick={() => setFilter("all")}
             className={`rounded-full px-5 py-2 font-medium ${
-              filter === "all" ? "bg-black text-white" : "border bg-white text-zinc-700"
+              filter === "all"
+                ? "bg-black text-white"
+                : "border bg-white text-zinc-700"
             }`}
           >
             All
@@ -263,7 +399,10 @@ export default function AdminPage() {
 
               {filteredGuests.length === 0 && (
                 <tr>
-                  <td colSpan="6" className="px-4 py-8 text-center text-zinc-500">
+                  <td
+                    colSpan="6"
+                    className="px-4 py-8 text-center text-zinc-500"
+                  >
                     No guests found for this filter.
                   </td>
                 </tr>
