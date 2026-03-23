@@ -11,16 +11,21 @@ export default function AdminPage() {
 
   const fetchGuests = async () => {
     const { data } = await supabase.from("guests").select("*");
-    setGuests(data);
+    setGuests(data || []);
   };
 
   const generateLinks = (guest) => {
-    const url = http://localhost:3000/rsvp/;
-    const message = Hi , RSVP here: ;
+    // 🔑 Use environment variable in production
+    const baseUrl =
+      process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+
+    const url = `${baseUrl}/rsvp/${guest.id}`;
+
+    const message = `Hi ${guest.name}, RSVP here: ${url}`;
 
     return {
-      whatsapp: https://wa.me/?text=,
-      sms: sms:?body=,
+      whatsapp: `https://wa.me/?text=${encodeURIComponent(message)}`,
+      sms: `sms:?body=${encodeURIComponent(message)}`,
     };
   };
 
@@ -43,10 +48,16 @@ export default function AdminPage() {
                 <td>{g.name}</td>
                 <td>{g.rsvp_status}</td>
                 <td className="flex gap-2 justify-center py-2">
-                  <button onClick={() => window.open(links.whatsapp)} className="bg-green-500 px-3 py-1 text-white rounded">
+                  <button
+                    onClick={() => window.open(links.whatsapp)}
+                    className="bg-green-500 px-3 py-1 text-white rounded"
+                  >
                     WhatsApp
                   </button>
-                  <button onClick={() => window.open(links.sms)} className="bg-blue-500 px-3 py-1 text-white rounded">
+                  <button
+                    onClick={() => window.open(links.sms)}
+                    className="bg-blue-500 px-3 py-1 text-white rounded"
+                  >
                     SMS
                   </button>
                 </td>
