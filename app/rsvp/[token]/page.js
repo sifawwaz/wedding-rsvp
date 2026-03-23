@@ -263,7 +263,7 @@ export default function RSVPPage() {
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
-                className="w-full rounded-lg border px-4 py-3"
+                className="w-full rounded-lg border bg-white px-4 py-3 text-black"
               >
                 <option value="pending">Select one</option>
                 <option value="attending">Yes, attending</option>
@@ -283,7 +283,7 @@ export default function RSVPPage() {
                     max={maxGuests}
                     value={attendingCount}
                     onChange={(e) => handleCountChange(e.target.value)}
-                    className="w-full rounded-lg border px-4 py-3"
+                    className="w-full rounded-lg border bg-white px-4 py-3 text-black placeholder:text-black"
                   />
                   <p className="mt-2 text-sm text-zinc-500">
                     You can enter up to {maxGuests}.
@@ -306,7 +306,7 @@ export default function RSVPPage() {
                             handleNameChange(index, e.target.value)
                           }
                           placeholder={`Person ${index + 1} name`}
-                          className="w-full rounded-lg border px-4 py-3"
+                          className="w-full rounded-lg border bg-white px-4 py-3 text-black placeholder:text-black"
                         />
                       ))}
                     </div>

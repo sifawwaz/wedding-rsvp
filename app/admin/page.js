@@ -78,6 +78,7 @@ export default function AdminPage() {
           .maybeSingle();
 
         if (error) {
+          console.error("Error checking token:", error);
           alert("Could not generate guest token.");
           setAddingGuest(false);
           return;
@@ -108,6 +109,7 @@ export default function AdminPage() {
       const { error } = await supabase.from("guests").insert([payload]);
 
       if (error) {
+        console.error("Error adding guest:", error);
         alert("Could not add guest.");
         setAddingGuest(false);
         return;
@@ -189,7 +191,7 @@ export default function AdminPage() {
               placeholder="Invite name"
               value={newInviteName}
               onChange={(e) => setNewInviteName(e.target.value)}
-              className="rounded-lg border px-4 py-3"
+              className="rounded-lg border bg-white px-4 py-3 text-black placeholder:text-black"
             />
 
             <input
@@ -197,7 +199,7 @@ export default function AdminPage() {
               placeholder="Family (optional)"
               value={newFamily}
               onChange={(e) => setNewFamily(e.target.value)}
-              className="rounded-lg border px-4 py-3"
+              className="rounded-lg border bg-white px-4 py-3 text-black placeholder:text-black"
             />
 
             <input
@@ -206,7 +208,7 @@ export default function AdminPage() {
               placeholder="Max guests"
               value={newMaxGuests}
               onChange={(e) => setNewMaxGuests(e.target.value)}
-              className="rounded-lg border px-4 py-3"
+              className="rounded-lg border bg-white px-4 py-3 text-black placeholder:text-black"
             />
 
             <button
