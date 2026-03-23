@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 export default function AdminPage() {
   const [guests, setGuests] = useState([]);
   const [filter, setFilter] = useState("all");
+  const [copiedId, setCopiedId] = useState(null);
 
   useEffect(() => {
     fetchGuests();
@@ -17,23 +18,29 @@ export default function AdminPage() {
       .select("*")
       .order("invite_name", { ascending: true });
 
-    if (!error) {
-      setGuests(data || []);
+    if (error) {
+      console.error("Error fetching guests:", error);
+      return;
     }
+
+    setGuests(data || []);
   };
 
   const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    "https://wedding-rsvp-lsbx2fjhm-sifawwazs-projects.vercel.app";
 
   const generateLinks = (guest) => {
     const path = `/rsvp/${guest.token}`;
     const url = `${baseUrl}${path}`;
-    const message = `Hi ${guest.invite_name || guest.family || "Guest"}, you are invited to our wedding. Please RSVP here: ${url}`;
+    const displayName = guest.invite_name || guest.family || "Guest";
+    const message = `Welcome to Ayman & Abdul Bari's RSVP page! Please use your personal RSVP link: ${url}`;
 
     return {
       url,
       whatsapp: `https://wa.me/?text=${encodeURIComponent(message)}`,
       sms: `sms:?body=${encodeURIComponent(message)}`,
+      displayName,
     };
   };
 
@@ -74,34 +81,51 @@ export default function AdminPage() {
     return guests;
   }, [guests, filter]);
 
+  const copyLink = async (guest) => {
+    const { url } = generateLinks(guest);
+
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedId(guest.id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (error) {
+      console.error("Failed to copy link:", error);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-zinc-50 p-6 md:p-10">
       <div className="mx-auto max-w-7xl">
-        <h1 className="mb-8 text-3xl font-bold text-zinc-900">
+        <h1 className="mb-2 text-3xl font-bold text-zinc-900">
           RSVP Dashboard
         </h1>
+        <p className="mb-8 text-zinc-600">
+          Manage invitations, copy RSVP links, and track guest responses.
+        </p>
 
         <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-2xl bg-white p-5 shadow-sm border">
+          <div className="rounded-2xl border bg-white p-5 shadow-sm">
             <p className="text-sm text-zinc-500">Total Invites</p>
-            <p className="mt-2 text-3xl font-bold">{stats.total}</p>
+            <p className="mt-2 text-3xl font-bold text-zinc-900">
+              {stats.total}
+            </p>
           </div>
 
-          <div className="rounded-2xl bg-white p-5 shadow-sm border">
+          <div className="rounded-2xl border bg-white p-5 shadow-sm">
             <p className="text-sm text-zinc-500">Attending</p>
             <p className="mt-2 text-3xl font-bold text-green-600">
               {stats.attending}
             </p>
           </div>
 
-          <div className="rounded-2xl bg-white p-5 shadow-sm border">
+          <div className="rounded-2xl border bg-white p-5 shadow-sm">
             <p className="text-sm text-zinc-500">Not Attending</p>
             <p className="mt-2 text-3xl font-bold text-red-600">
               {stats.declined}
             </p>
           </div>
 
-          <div className="rounded-2xl bg-white p-5 shadow-sm border">
+          <div className="rounded-2xl border bg-white p-5 shadow-sm">
             <p className="text-sm text-zinc-500">Pending</p>
             <p className="mt-2 text-3xl font-bold text-amber-600">
               {stats.pending}
@@ -115,7 +139,7 @@ export default function AdminPage() {
             className={`rounded-full px-5 py-2 font-medium ${
               filter === "all"
                 ? "bg-black text-white"
-                : "bg-white border text-zinc-700"
+                : "border bg-white text-zinc-700"
             }`}
           >
             All
@@ -126,7 +150,7 @@ export default function AdminPage() {
             className={`rounded-full px-5 py-2 font-medium ${
               filter === "attending"
                 ? "bg-green-600 text-white"
-                : "bg-white border text-zinc-700"
+                : "border bg-white text-zinc-700"
             }`}
           >
             Attending
@@ -137,7 +161,7 @@ export default function AdminPage() {
             className={`rounded-full px-5 py-2 font-medium ${
               filter === "declined"
                 ? "bg-red-600 text-white"
-                : "bg-white border text-zinc-700"
+                : "border bg-white text-zinc-700"
             }`}
           >
             Not Attending
@@ -148,56 +172,101 @@ export default function AdminPage() {
             className={`rounded-full px-5 py-2 font-medium ${
               filter === "pending"
                 ? "bg-amber-500 text-white"
-                : "bg-white border text-zinc-700"
+                : "border bg-white text-zinc-700"
             }`}
           >
             Pending
           </button>
         </div>
 
-        <div className="overflow-x-auto rounded-2xl bg-white shadow-sm border">
+        <div className="overflow-x-auto rounded-2xl border bg-white shadow-sm">
           <table className="min-w-full">
             <thead className="bg-zinc-100">
               <tr>
-                <th className="px-4 py-3 text-left">Invite Name</th>
-                <th className="px-4 py-3 text-left">Family</th>
-                <th className="px-4 py-3 text-left">Status</th>
-                <th className="px-4 py-3 text-left">Count</th>
-                <th className="px-4 py-3 text-left">Link</th>
-                <th className="px-4 py-3 text-left">Actions</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-zinc-700">
+                  Invite Name
+                </th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-zinc-700">
+                  Family
+                </th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-zinc-700">
+                  Status
+                </th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-zinc-700">
+                  Attending Count
+                </th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-zinc-700">
+                  RSVP Link
+                </th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-zinc-700">
+                  Actions
+                </th>
               </tr>
             </thead>
+
             <tbody>
-              {filteredGuests.map((g) => {
-                const links = generateLinks(g);
+              {filteredGuests.map((guest) => {
+                const links = generateLinks(guest);
 
                 return (
-                  <tr key={g.id} className="border-t align-top">
-                    <td className="px-4 py-3">{g.invite_name || "-"}</td>
-                    <td className="px-4 py-3">{g.family || "-"}</td>
-                    <td className="px-4 py-3">{g.rsvp_status || "pending"}</td>
-                    <td className="px-4 py-3">{g.attending_count ?? 0}</td>
+                  <tr key={guest.id} className="border-t align-top">
+                    <td className="px-4 py-3 text-zinc-900">
+                      {guest.invite_name || "-"}
+                    </td>
+
+                    <td className="px-4 py-3 text-zinc-700">
+                      {guest.family || "-"}
+                    </td>
+
+                    <td className="px-4 py-3">
+                      <span
+                        className={`inline-block rounded-full px-3 py-1 text-sm font-medium ${
+                          guest.rsvp_status === "attending"
+                            ? "bg-green-100 text-green-700"
+                            : guest.rsvp_status === "declined" ||
+                              guest.rsvp_status === "not_attending"
+                            ? "bg-red-100 text-red-700"
+                            : "bg-amber-100 text-amber-700"
+                        }`}
+                      >
+                        {guest.rsvp_status || "pending"}
+                      </span>
+                    </td>
+
+                    <td className="px-4 py-3 text-zinc-700">
+                      {guest.attending_count ?? 0}
+                    </td>
+
                     <td className="px-4 py-3">
                       <a
                         href={links.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-blue-600 underline break-all"
+                        className="break-all text-blue-600 underline"
                       >
                         {links.url}
                       </a>
                     </td>
+
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-2">
                         <button
-                          onClick={() => window.open(links.whatsapp)}
-                          className="rounded bg-green-500 px-3 py-1 text-white"
+                          onClick={() => copyLink(guest)}
+                          className="rounded bg-zinc-800 px-3 py-1 text-sm text-white hover:bg-zinc-700"
+                        >
+                          {copiedId === guest.id ? "Copied" : "Copy Link"}
+                        </button>
+
+                        <button
+                          onClick={() => window.open(links.whatsapp, "_blank")}
+                          className="rounded bg-green-500 px-3 py-1 text-sm text-white hover:bg-green-600"
                         >
                           WhatsApp
                         </button>
+
                         <button
-                          onClick={() => window.open(links.sms)}
-                          className="rounded bg-blue-500 px-3 py-1 text-white"
+                          onClick={() => window.open(links.sms, "_blank")}
+                          className="rounded bg-blue-500 px-3 py-1 text-sm text-white hover:bg-blue-600"
                         >
                           SMS
                         </button>
@@ -209,8 +278,11 @@ export default function AdminPage() {
 
               {filteredGuests.length === 0 && (
                 <tr>
-                  <td colSpan="6" className="px-4 py-8 text-center text-zinc-500">
-                    No guests in this category.
+                  <td
+                    colSpan="6"
+                    className="px-4 py-8 text-center text-zinc-500"
+                  >
+                    No guests found for this filter.
                   </td>
                 </tr>
               )}
