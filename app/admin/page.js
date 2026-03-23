@@ -27,20 +27,17 @@ export default function AdminPage() {
   };
 
   const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    "https://wedding-rsvp-lsbx2fjhm-sifawwazs-projects.vercel.app";
+    process.env.NEXT_PUBLIC_SITE_URL || "https://wedding-rsvp.vercel.app";
 
   const generateLinks = (guest) => {
-    const path = `/rsvp/${guest.token}`;
-    const url = `${baseUrl}${path}`;
+    const url = `${baseUrl}/rsvp/${guest.token}`;
     const displayName = guest.invite_name || guest.family || "Guest";
-    const message = `Welcome to Ayman & Abdul Bari's RSVP page! Please use your personal RSVP link: ${url}`;
+    const message = `Hi ${displayName}, welcome to Ayman & Abdul Bari's RSVP page. Please RSVP here: ${url}`;
 
     return {
       url,
       whatsapp: `https://wa.me/?text=${encodeURIComponent(message)}`,
       sms: `sms:?body=${encodeURIComponent(message)}`,
-      displayName,
     };
   };
 
@@ -96,40 +93,30 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-zinc-50 p-6 md:p-10">
       <div className="mx-auto max-w-7xl">
-        <h1 className="mb-2 text-3xl font-bold text-zinc-900">
-          RSVP Dashboard
-        </h1>
+        <h1 className="mb-2 text-3xl font-bold text-zinc-900">RSVP Dashboard</h1>
         <p className="mb-8 text-zinc-600">
-          Manage invitations, copy RSVP links, and track guest responses.
+          Manage invitations, copy RSVP links, and track live responses.
         </p>
 
         <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-2xl border bg-white p-5 shadow-sm">
             <p className="text-sm text-zinc-500">Total Invites</p>
-            <p className="mt-2 text-3xl font-bold text-zinc-900">
-              {stats.total}
-            </p>
+            <p className="mt-2 text-3xl font-bold text-zinc-900">{stats.total}</p>
           </div>
 
           <div className="rounded-2xl border bg-white p-5 shadow-sm">
             <p className="text-sm text-zinc-500">Attending</p>
-            <p className="mt-2 text-3xl font-bold text-green-600">
-              {stats.attending}
-            </p>
+            <p className="mt-2 text-3xl font-bold text-green-600">{stats.attending}</p>
           </div>
 
           <div className="rounded-2xl border bg-white p-5 shadow-sm">
             <p className="text-sm text-zinc-500">Not Attending</p>
-            <p className="mt-2 text-3xl font-bold text-red-600">
-              {stats.declined}
-            </p>
+            <p className="mt-2 text-3xl font-bold text-red-600">{stats.declined}</p>
           </div>
 
           <div className="rounded-2xl border bg-white p-5 shadow-sm">
             <p className="text-sm text-zinc-500">Pending</p>
-            <p className="mt-2 text-3xl font-bold text-amber-600">
-              {stats.pending}
-            </p>
+            <p className="mt-2 text-3xl font-bold text-amber-600">{stats.pending}</p>
           </div>
         </div>
 
@@ -137,9 +124,7 @@ export default function AdminPage() {
           <button
             onClick={() => setFilter("all")}
             className={`rounded-full px-5 py-2 font-medium ${
-              filter === "all"
-                ? "bg-black text-white"
-                : "border bg-white text-zinc-700"
+              filter === "all" ? "bg-black text-white" : "border bg-white text-zinc-700"
             }`}
           >
             All
@@ -193,7 +178,7 @@ export default function AdminPage() {
                   Status
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-zinc-700">
-                  Attending Count
+                  Count
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-zinc-700">
                   RSVP Link
@@ -278,10 +263,7 @@ export default function AdminPage() {
 
               {filteredGuests.length === 0 && (
                 <tr>
-                  <td
-                    colSpan="6"
-                    className="px-4 py-8 text-center text-zinc-500"
-                  >
+                  <td colSpan="6" className="px-4 py-8 text-center text-zinc-500">
                     No guests found for this filter.
                   </td>
                 </tr>
