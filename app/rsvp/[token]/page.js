@@ -207,7 +207,7 @@ export default function RSVPPage() {
             className="mb-4 text-2xl font-semibold leading-tight text-[#4d3a20] md:text-3xl"
             style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
           >
-            Welcome to Ayman & Abdul Bari&apos;s RSVP page
+            Ayman & Abdul Bari&apos;s RSVP page
           </h1>
 
           <p className="mx-auto max-w-xl text-sm leading-7 text-[#6b5a43] md:text-base">
