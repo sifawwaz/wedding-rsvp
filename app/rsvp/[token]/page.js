@@ -202,42 +202,10 @@ export default function RSVPPage() {
             />
           </div>
 
-          <p className="mb-2 text-lg text-[#8a6a37]">
-            السلام عليكم ورحمة الله وبركاته
-          </p>
-
-          <p
-            className="mb-6 text-2xl text-[#6d532b] md:text-3xl"
-            style={{
-              fontFamily:
-                '"Brush Script MT", "Lucida Handwriting", "Apple Chancery", cursive',
-            }}
-          >
-            Assalamu Alaikum wa Rahmatullahi wa Barakatuh
-          </p>
-
           <p className="mx-auto max-w-xl text-sm leading-7 text-[#6b5a43] md:text-base">
             Please kindly respond for the wedding of Ayman & Abdul Bari by May
             3rd 2026.
           </p>
-
-          <div className="mt-6 rounded-[1.5rem] border border-[#e6d6b7] bg-[#fbf7ef] px-6 py-5">
-            <p
-              className="mb-2 text-lg text-[#6d532b] md:text-xl"
-              style={{
-                fontFamily:
-                  '"Brush Script MT", "Lucida Handwriting", "Apple Chancery", cursive',
-              }}
-            >
-              In sha Allah on {"{Insert Date Here}"}
-            </p>
-
-            <p className="mb-3 text-[#8a6a37]">إن شاء الله</p>
-
-            <p className="text-sm text-[#5d4c35] md:text-base">
-              Venue: <span className="font-semibold">{"{Insert Venue Here}"}</span>
-            </p>
-          </div>
         </div>
 
         <div className="mb-8 rounded-[1.5rem] border border-[#e6d6b7] bg-[#fbf7ef] px-6 py-5 text-center">
