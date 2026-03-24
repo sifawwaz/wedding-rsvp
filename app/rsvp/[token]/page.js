@@ -167,7 +167,7 @@ export default function RSVPPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-rose-50 text-rose-900">
+      <div className="min-h-screen flex items-center justify-center bg-[#f8f3ea] text-[#3d3324]">
         <p className="text-lg font-medium">Loading your invitation...</p>
       </div>
     );
@@ -175,9 +175,9 @@ export default function RSVPPage() {
 
   if (!guest) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-rose-50 px-6">
-        <div className="bg-white p-8 rounded-3xl shadow-lg text-center max-w-md">
-          <h1 className="text-2xl font-bold text-rose-900 mb-3">
+      <div className="min-h-screen flex items-center justify-center bg-[#f8f3ea] px-6">
+        <div className="max-w-md rounded-[2rem] border border-[#dcc9a3] bg-white p-8 text-center shadow-lg">
+          <h1 className="mb-3 text-2xl font-semibold text-[#5b4527]">
             Invitation Not Found
           </h1>
           <p className="text-zinc-600">
@@ -191,52 +191,66 @@ export default function RSVPPage() {
   const alreadyResponded = guest.rsvp_status && guest.rsvp_status !== "pending";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rose-100 via-pink-100 to-amber-50 flex items-center justify-center px-6 py-12">
-      <div className="w-full max-w-2xl bg-white/90 backdrop-blur rounded-[2rem] shadow-2xl border border-rose-100 p-8 md:p-12">
-        <div className="text-center mb-8">
-          <div className="text-4xl mb-3">🌸✨💍✨🌸</div>
-          <p className="uppercase tracking-[0.35em] text-xs text-rose-500 font-semibold mb-3">
-            Wedding RSVP
+    <div className="min-h-screen bg-gradient-to-br from-[#f7f1e6] via-[#fdfaf4] to-[#efe4cf] px-6 py-12 flex items-center justify-center">
+      <div className="w-full max-w-2xl rounded-[2rem] border border-[#dcc9a3] bg-white/95 p-8 shadow-2xl md:p-12">
+        <div className="mb-8 text-center">
+          <div className="mx-auto mb-5 h-px w-32 bg-gradient-to-r from-transparent via-[#b8945b] to-transparent" />
+
+          <p
+            className="mb-4 text-4xl font-semibold tracking-[0.28em] text-[#8a6a37] md:text-5xl"
+            style={{ fontFamily: '"Times New Roman", Georgia, serif' }}
+          >
+            WEDDING RSVP
           </p>
-          <h1 className="text-3xl md:text-5xl font-bold text-rose-900 leading-tight mb-4">
-            Welcome to Ayman & Abdul Bari&apos;s RSVP page!
+
+          <h1
+            className="mb-4 text-2xl font-semibold leading-tight text-[#4d3a20] md:text-3xl"
+            style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
+          >
+            Welcome to Ayman & Abdul Bari&apos;s RSVP page
           </h1>
-          <p className="text-base md:text-lg text-zinc-700 leading-8">
+
+          <p className="mx-auto max-w-xl text-sm leading-7 text-[#6b5a43] md:text-base">
             Please select whether you will be attending or not.
           </p>
+
+          <div className="mx-auto mt-5 h-px w-32 bg-gradient-to-r from-transparent via-[#b8945b] to-transparent" />
         </div>
 
-        <div className="bg-rose-50 rounded-2xl px-6 py-5 mb-8 border border-rose-100 text-center">
-          <p className="text-sm uppercase tracking-[0.25em] text-rose-500 mb-2">
+        <div className="mb-8 rounded-[1.5rem] border border-[#e6d6b7] bg-[#fbf7ef] px-6 py-5 text-center">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.35em] text-[#9b7a43]">
             Invitation For
           </p>
-          <h2 className="text-2xl md:text-3xl font-semibold text-zinc-900">
+          <h2
+            className="text-2xl font-semibold text-[#3f2f1a] md:text-3xl"
+            style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
+          >
             {guest.invite_name || guest.family || "Guest"}
           </h2>
-          <p className="mt-3 text-zinc-600">
+          <p className="mt-3 text-[#6b5a43]">
             Total invited from your family:{" "}
-            <span className="font-semibold text-zinc-900">{maxGuests}</span>
+            <span className="font-semibold text-[#3f2f1a]">{maxGuests}</span>
           </p>
         </div>
 
         {alreadyResponded ? (
           <div className="text-center">
-            <p className="text-lg text-zinc-700 mb-4">
+            <p className="mb-4 text-lg text-[#5d4c35]">
               Your response has been recorded.
             </p>
 
-            <div className="inline-block rounded-full px-6 py-3 text-lg font-semibold bg-rose-100 text-rose-900 mb-4">
+            <div className="mb-4 inline-block rounded-full bg-[#f3e7cf] px-6 py-3 text-lg font-semibold text-[#6d532b]">
               {guest.rsvp_status === "attending"
-                ? `🎉 Attending (${guest.attending_count || 0})`
-                : "💌 Not Attending"}
+                ? `Attending (${guest.attending_count || 0})`
+                : "Not Attending"}
             </div>
 
             {guest.rsvp_status === "attending" && guest.attending_names && (
-              <div className="mt-4 text-left bg-zinc-50 border rounded-2xl p-4">
-                <p className="font-semibold text-zinc-900 mb-2">
+              <div className="mt-4 rounded-[1.5rem] border border-[#e6d6b7] bg-[#fbf7ef] p-4 text-left">
+                <p className="mb-2 font-semibold text-[#3f2f1a]">
                   Attending family members:
                 </p>
-                <ul className="list-disc pl-5 text-zinc-700">
+                <ul className="list-disc pl-5 text-[#5d4c35]">
                   {guest.attending_names.split(",").map((name, index) => (
                     <li key={index}>{name.trim()}</li>
                   ))}
@@ -249,7 +263,7 @@ export default function RSVPPage() {
                 setGuest({ ...guest, rsvp_status: "pending" });
                 setStatus("pending");
               }}
-              className="mt-6 px-6 py-3 rounded-full bg-black text-white hover:bg-zinc-800"
+              className="mt-6 rounded-full bg-[#6d532b] px-6 py-3 text-white transition hover:bg-[#5b4523]"
             >
               Change My Response
             </button>
@@ -257,13 +271,13 @@ export default function RSVPPage() {
         ) : (
           <>
             <div className="mb-6">
-              <label className="block mb-2 font-medium text-zinc-800">
+              <label className="mb-2 block font-medium text-[#3f2f1a]">
                 Will you be attending?
               </label>
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
-                className="w-full rounded-lg border bg-white px-4 py-3 text-black"
+                className="w-full rounded-lg border border-[#d9c39d] bg-white px-4 py-3 text-black"
               >
                 <option value="pending">Select one</option>
                 <option value="attending">Yes, attending</option>
@@ -274,7 +288,7 @@ export default function RSVPPage() {
             {status === "attending" && (
               <>
                 <div className="mb-6">
-                  <label className="block mb-2 font-medium text-zinc-800">
+                  <label className="mb-2 block font-medium text-[#3f2f1a]">
                     How many people from your family will attend?
                   </label>
                   <input
@@ -283,16 +297,16 @@ export default function RSVPPage() {
                     max={maxGuests}
                     value={attendingCount}
                     onChange={(e) => handleCountChange(e.target.value)}
-                    className="w-full rounded-lg border bg-white px-4 py-3 text-black placeholder:text-black"
+                    className="w-full rounded-lg border border-[#d9c39d] bg-white px-4 py-3 text-black placeholder:text-black"
                   />
-                  <p className="mt-2 text-sm text-zinc-500">
+                  <p className="mt-2 text-sm text-[#7a6850]">
                     You can enter up to {maxGuests}.
                   </p>
                 </div>
 
                 {visibleNameInputs.length > 0 && (
                   <div className="mb-8">
-                    <label className="block mb-3 font-medium text-zinc-800">
+                    <label className="mb-3 block font-medium text-[#3f2f1a]">
                       Enter the names of the attending family members
                     </label>
 
@@ -306,7 +320,7 @@ export default function RSVPPage() {
                             handleNameChange(index, e.target.value)
                           }
                           placeholder={`Person ${index + 1} name`}
-                          className="w-full rounded-lg border bg-white px-4 py-3 text-black placeholder:text-black"
+                          className="w-full rounded-lg border border-[#d9c39d] bg-white px-4 py-3 text-black placeholder:text-black"
                         />
                       ))}
                     </div>
@@ -315,19 +329,17 @@ export default function RSVPPage() {
               </>
             )}
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="flex justify-center">
               <button
                 onClick={handleSubmit}
                 disabled={saving || status === "pending"}
-                className="px-8 py-3 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white font-semibold shadow-md transition disabled:opacity-60"
+                className="rounded-full bg-[#6d532b] px-8 py-3 font-semibold text-white shadow-md transition hover:bg-[#5b4523] disabled:opacity-60"
               >
                 {saving ? "Saving..." : "Submit RSVP"}
               </button>
             </div>
           </>
         )}
-
-        <div className="mt-10 text-center text-3xl">🌷🤍🌷</div>
       </div>
     </div>
   );
