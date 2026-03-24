@@ -196,6 +196,20 @@ export default function RSVPPage() {
         <div className="mb-8 text-center">
           <div className="mx-auto mb-5 h-px w-32 bg-gradient-to-r from-transparent via-[#b8945b] to-transparent" />
 
+          <p className="mb-3 text-lg text-[#8a6a37]">
+            السلام عليكم ورحمة الله وبركاته
+          </p>
+
+          <p
+            className="mb-6 text-2xl text-[#6d532b] md:text-3xl"
+            style={{
+              fontFamily:
+                '"Brush Script MT", "Lucida Handwriting", "Apple Chancery", cursive',
+            }}
+          >
+            Assalamu Alaikum wa Rahmatullahi wa Barakatuh
+          </p>
+
           <p
             className="mb-4 text-4xl font-semibold tracking-[0.28em] text-[#8a6a37] md:text-5xl"
             style={{ fontFamily: '"Times New Roman", Georgia, serif' }}
@@ -205,7 +219,10 @@ export default function RSVPPage() {
 
           <h1
             className="mb-4 text-2xl font-semibold leading-tight text-[#4d3a20] md:text-3xl"
-            style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
+            style={{
+              fontFamily:
+                '"Brush Script MT", "Lucida Handwriting", "Apple Chancery", cursive',
+            }}
           >
             Welcome to Ayman & Abdul Bari&apos;s RSVP page
           </h1>
@@ -213,6 +230,23 @@ export default function RSVPPage() {
           <p className="mx-auto max-w-xl text-sm leading-7 text-[#6b5a43] md:text-base">
             Please select whether you will be attending or not.
           </p>
+
+          <div className="mt-6 rounded-[1.5rem] border border-[#e6d6b7] bg-[#fbf7ef] px-6 py-5">
+            <p
+              className="mb-2 text-lg text-[#6d532b] md:text-xl"
+              style={{
+                fontFamily:
+                  '"Brush Script MT", "Lucida Handwriting", "Apple Chancery", cursive',
+              }}
+            >
+              In sha Allah on {"{Insert Date Here}"}
+            </p>
+            <p className="mb-3 text-[#8a6a37]">إن شاء الله</p>
+
+            <p className="text-sm text-[#5d4c35] md:text-base">
+              Venue: <span className="font-semibold">{"{Insert Venue Here}"}</span>
+            </p>
+          </div>
 
           <div className="mx-auto mt-5 h-px w-32 bg-gradient-to-r from-transparent via-[#b8945b] to-transparent" />
         </div>
