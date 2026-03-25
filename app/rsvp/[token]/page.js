@@ -18,37 +18,24 @@ export default function RSVPPage() {
 
   useEffect(() => {
     const fetchGuest = async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("guests")
         .select("*")
         .eq("token", token)
         .single();
 
-      if (error || !data) {
-        setGuest(null);
-        setLoading(false);
-        return;
-      }
-
       setGuest(data);
-      setStatus(data.rsvp_status || "pending");
+      setStatus(data?.rsvp_status || "pending");
 
-      const savedCount = Number(data.attending_count || 0);
-      setAttendingCount(savedCount);
+      const count = Number(data?.attending_count || 0);
+      setAttendingCount(count);
 
-      const parsedNames =
-        data.attending_names && data.attending_names.trim()
-          ? data.attending_names
-              .split(",")
-              .map((name) => name.trim())
-              .filter(Boolean)
-          : [];
+      const names =
+        data?.attending_names?.split(",").map((n) => n.trim()) || [];
 
-      if (parsedNames.length > 0) {
-        setAttendingNames(parsedNames);
-      } else {
-        setAttendingNames(savedCount > 0 ? Array(savedCount).fill("") : [""]);
-      }
+      setAttendingNames(
+        names.length ? names : count > 0 ? Array(count).fill("") : [""]
+      );
 
       setLoading(false);
     };
@@ -58,8 +45,8 @@ export default function RSVPPage() {
 
   const maxGuests = Number(guest?.max_guests || 1);
 
-  const visibleNameInputs = useMemo(() => {
-    if (status !== "attending" || attendingCount < 1) return [];
+  const visibleInputs = useMemo(() => {
+    if (status !== "attending") return [];
     return attendingNames.slice(0, attendingCount);
   }, [attendingNames, attendingCount, status]);
 
@@ -74,12 +61,26 @@ export default function RSVPPage() {
     });
   };
 
-  const handleNameChange = (index, value) => {
+  const handleNameChange = (i, val) => {
     setAttendingNames((prev) => {
       const next = [...prev];
-      next[index] = value;
+      next[i] = val;
       return next;
     });
+  };
+
+  const notify = async (payload) => {
+    try {
+      await fetch("/api/notify-rsvp", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+    } catch (e) {
+      console.error("Notify failed", e);
+    }
   };
 
   const handleSubmit = async () => {
@@ -87,58 +88,56 @@ export default function RSVPPage() {
 
     if (status === "attending") {
       if (attendingCount < 1) {
-        alert("Please enter how many people are attending.");
+        alert("Enter how many people are attending.");
         return;
       }
 
-      if (attendingCount > maxGuests) {
-        alert(`You cannot exceed the invited count of ${maxGuests}.`);
-        return;
-      }
-
-      const cleanedNames = attendingNames
+      const cleaned = attendingNames
         .slice(0, attendingCount)
-        .map((name) => name.trim())
-        .filter(Boolean);
+        .map((n) => n.trim());
 
-      if (cleanedNames.length !== attendingCount) {
-        alert("Please enter the name of each attending family member.");
+      if (cleaned.some((n) => !n)) {
+        alert("Enter all names.");
         return;
       }
 
       setSaving(true);
 
-      const { error } = await supabase
+      await supabase
         .from("guests")
         .update({
           rsvp_status: "attending",
           attending_count: attendingCount,
-          attending_names: cleanedNames.join(", "),
+          attending_names: cleaned.join(", "),
         })
         .eq("token", token);
 
       setSaving(false);
 
-      if (error) {
-        alert("Could not save RSVP.");
-        return;
-      }
+      await notify({
+        invite_name: guest.invite_name,
+        family: guest.family,
+        rsvp_status: "attending",
+        attending_count: attendingCount,
+        attending_names: cleaned.join(", "),
+        max_guests: maxGuests,
+      });
 
       setGuest({
         ...guest,
         rsvp_status: "attending",
         attending_count: attendingCount,
-        attending_names: cleanedNames.join(", "),
+        attending_names: cleaned.join(", "),
       });
 
-      alert("RSVP saved successfully.");
+      alert("RSVP saved");
       return;
     }
 
     if (status === "declined") {
       setSaving(true);
 
-      const { error } = await supabase
+      await supabase
         .from("guests")
         .update({
           rsvp_status: "declined",
@@ -149,10 +148,14 @@ export default function RSVPPage() {
 
       setSaving(false);
 
-      if (error) {
-        alert("Could not save RSVP.");
-        return;
-      }
+      await notify({
+        invite_name: guest.invite_name,
+        family: guest.family,
+        rsvp_status: "declined",
+        attending_count: 0,
+        attending_names: null,
+        max_guests: maxGuests,
+      });
 
       setGuest({
         ...guest,
@@ -161,176 +164,80 @@ export default function RSVPPage() {
         attending_names: null,
       });
 
-      alert("RSVP saved successfully.");
+      alert("RSVP saved");
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f8f3ea] text-[#3d3324]">
-        <p className="text-lg font-medium">Loading your invitation...</p>
-      </div>
-    );
-  }
-
-  if (!guest) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f8f3ea] px-6">
-        <div className="max-w-md rounded-[2rem] border border-[#dcc9a3] bg-white p-8 text-center shadow-lg">
-          <h1 className="mb-3 text-2xl font-semibold text-[#5b4527]">
-            Invitation Not Found
-          </h1>
-          <p className="text-zinc-600">
-            This RSVP link is invalid or no longer available.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  const alreadyResponded = guest.rsvp_status && guest.rsvp_status !== "pending";
+  if (loading) return <div className="p-10">Loading...</div>;
+  if (!guest) return <div className="p-10">Guest not found</div>;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#f7f1e6] via-[#fdfaf4] to-[#efe4cf] px-6 py-12 flex items-center justify-center">
-      <div className="w-full max-w-2xl rounded-[2rem] border border-[#dcc9a3] bg-white/95 p-8 shadow-2xl md:p-12">
-        <div className="mb-8 text-center">
-          <div className="flex justify-center mb-6">
-            <img
-              src="/rsvp.png"
-              alt="RSVP"
-              className="w-[260px] md:w-[420px] object-contain"
-            />
-          </div>
+    <div className="min-h-screen bg-[#f7f1e6] flex items-center justify-center px-6">
+      <div className="bg-white p-10 rounded-2xl shadow-xl max-w-xl w-full text-center">
 
-          <p className="mx-auto max-w-xl text-sm leading-7 text-[#6b5a43] md:text-base">
-            Please kindly respond for the wedding of Ayman & Abdul Bari by May
-            3rd 2026.
-          </p>
+        {/* IMAGE */}
+        <div className="mb-6 flex justify-center">
+          <img src="/rsvp.png" className="w-72" />
         </div>
 
-        <div className="mb-8 rounded-[1.5rem] border border-[#e6d6b7] bg-[#fbf7ef] px-6 py-5 text-center">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.35em] text-[#9b7a43]">
-            Invitation For
-          </p>
-          <h2
-            className="text-2xl font-semibold text-[#3f2f1a] md:text-3xl"
-            style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
-          >
-            {guest.invite_name || guest.family || "Guest"}
-          </h2>
-          <p className="mt-3 text-[#6b5a43]">
-            Total invited from your family:{" "}
-            <span className="font-semibold text-[#3f2f1a]">{maxGuests}</span>
-          </p>
-        </div>
+        {/* TEXT */}
+        <p className="text-sm text-gray-600 mb-6">
+          Please kindly respond by May 3rd 2026.
+        </p>
 
-        {alreadyResponded ? (
-          <div className="text-center">
-            <p className="mb-4 text-lg text-[#5d4c35]">
-              Your response has been recorded.
-            </p>
+        {/* INVITE */}
+        <h2 className="text-2xl font-semibold mb-2">
+          {guest.invite_name || guest.family}
+        </h2>
 
-            <div className="mb-4 inline-block rounded-full bg-[#f3e7cf] px-6 py-3 text-lg font-semibold text-[#6d532b]">
-              {guest.rsvp_status === "attending"
-                ? `Attending (${guest.attending_count || 0})`
-                : "Not Attending"}
-            </div>
+        <p className="text-gray-600 mb-6">
+          Invited: {maxGuests}
+        </p>
 
-            {guest.rsvp_status === "attending" && guest.attending_names && (
-              <div className="mt-4 rounded-[1.5rem] border border-[#e6d6b7] bg-[#fbf7ef] p-4 text-left">
-                <p className="mb-2 font-semibold text-[#3f2f1a]">
-                  Attending family members:
-                </p>
-                <ul className="list-disc pl-5 text-[#5d4c35]">
-                  {guest.attending_names.split(",").map((name, index) => (
-                    <li key={index}>{name.trim()}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
+        {/* SELECT */}
+        <select
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+          className="w-full border px-4 py-2 mb-4 text-black"
+        >
+          <option value="pending">Select</option>
+          <option value="attending">Attending</option>
+          <option value="declined">Not Attending</option>
+        </select>
 
-            <button
-              onClick={() => {
-                setGuest({ ...guest, rsvp_status: "pending" });
-                setStatus("pending");
-              }}
-              className="mt-6 rounded-full bg-[#6d532b] px-6 py-3 text-white transition hover:bg-[#5b4523]"
-            >
-              Change My Response
-            </button>
-          </div>
-        ) : (
+        {/* ATTENDING */}
+        {status === "attending" && (
           <>
-            <div className="mb-6">
-              <label className="mb-2 block font-medium text-[#3f2f1a]">
-                Will you be attending?
-              </label>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                className="w-full rounded-lg border border-[#d9c39d] bg-white px-4 py-3 text-black"
-              >
-                <option value="pending">Select one</option>
-                <option value="attending">Yes, attending</option>
-                <option value="declined">No, cannot attend</option>
-              </select>
-            </div>
+            <input
+              type="number"
+              min="1"
+              max={maxGuests}
+              value={attendingCount}
+              onChange={(e) => handleCountChange(e.target.value)}
+              className="w-full border px-4 py-2 mb-4 text-black"
+            />
 
-            {status === "attending" && (
-              <>
-                <div className="mb-6">
-                  <label className="mb-2 block font-medium text-[#3f2f1a]">
-                    How many people from your family will attend?
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max={maxGuests}
-                    value={attendingCount}
-                    onChange={(e) => handleCountChange(e.target.value)}
-                    className="w-full rounded-lg border border-[#d9c39d] bg-white px-4 py-3 text-black placeholder:text-black"
-                  />
-                  <p className="mt-2 text-sm text-[#7a6850]">
-                    You can enter up to {maxGuests}.
-                  </p>
-                </div>
-
-                {visibleNameInputs.length > 0 && (
-                  <div className="mb-8">
-                    <label className="mb-3 block font-medium text-[#3f2f1a]">
-                      Enter the names of the attending family members
-                    </label>
-
-                    <div className="space-y-3">
-                      {visibleNameInputs.map((name, index) => (
-                        <input
-                          key={index}
-                          type="text"
-                          value={name}
-                          onChange={(e) =>
-                            handleNameChange(index, e.target.value)
-                          }
-                          placeholder={`Person ${index + 1} name`}
-                          className="w-full rounded-lg border border-[#d9c39d] bg-white px-4 py-3 text-black placeholder:text-black"
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-
-            <div className="flex justify-center">
-              <button
-                onClick={handleSubmit}
-                disabled={saving || status === "pending"}
-                className="rounded-full bg-[#6d532b] px-8 py-3 font-semibold text-white shadow-md transition hover:bg-[#5b4523] disabled:opacity-60"
-              >
-                {saving ? "Saving..." : "Submit RSVP"}
-              </button>
-            </div>
+            {visibleInputs.map((name, i) => (
+              <input
+                key={i}
+                value={name}
+                onChange={(e) => handleNameChange(i, e.target.value)}
+                placeholder={`Person ${i + 1}`}
+                className="w-full border px-4 py-2 mb-2 text-black"
+              />
+            ))}
           </>
         )}
+
+        {/* BUTTON */}
+        <button
+          onClick={handleSubmit}
+          disabled={saving}
+          className="mt-4 bg-black text-white px-6 py-2 rounded"
+        >
+          {saving ? "Saving..." : "Submit"}
+        </button>
+
       </div>
     </div>
   );
