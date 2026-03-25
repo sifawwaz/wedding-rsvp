@@ -8,7 +8,7 @@ export default function RSVPPage() {
   const params = useParams();
   const token = params?.token;
 
-  const CHANGE_DEADLINE = new Date("2026-05-3T23:59:59");
+  const CHANGE_DEADLINE = new Date("2026-05-03T23:59:59");
 
   const [guest, setGuest] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -18,32 +18,10 @@ export default function RSVPPage() {
   const [attendingCount, setAttendingCount] = useState(0);
   const [attendingNames, setAttendingNames] = useState([""]);
 
-  const [stats, setStats] = useState({
-    attending: 0,
-    declined: 0,
-  });
-
   const [successMessage, setSuccessMessage] = useState("");
   const [showSuccess, setShowSuccess] = useState(false);
 
   const changesOpen = new Date() <= CHANGE_DEADLINE;
-
-  const fetchStats = async () => {
-    const { data } = await supabase.from("guests").select("*");
-
-    const attendingTotal = (data || [])
-      .filter((g) => g.rsvp_status === "attending")
-      .reduce((sum, g) => sum + Number(g.attending_count || 0), 0);
-
-    const declinedTotal = (data || []).filter(
-      (g) => g.rsvp_status === "declined"
-    ).length;
-
-    setStats({
-      attending: attendingTotal,
-      declined: declinedTotal,
-    });
-  };
 
   useEffect(() => {
     const fetchGuest = async () => {
@@ -186,7 +164,6 @@ export default function RSVPPage() {
       };
 
       setGuest(updatedGuest);
-      await fetchStats();
       showAnimatedSuccess("RSVP submitted successfully.");
       return;
     }
@@ -270,14 +247,6 @@ export default function RSVPPage() {
   return (
     <div className="min-h-screen bg-[#f4f1eb] px-4 py-10 md:px-6">
       <div className="mx-auto w-full max-w-5xl">
-        <div className="mb-5 flex justify-center gap-3 text-sm">
-          <div className="rounded-full bg-[#e8f3ea] px-4 py-2 text-[#356446] shadow-sm">
-            Total Attending: {stats.attending}
-          </div>
-          <div className="rounded-full bg-[#f6e8e8] px-4 py-2 text-[#8a4d4d] shadow-sm">
-            Not Attending: {stats.declined}
-          </div>
-        </div>
 
         <div className="mx-auto w-full max-w-4xl rounded-[38px] border border-[#ece7df] bg-white px-6 py-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)] md:px-10 md:py-10">
           <div className="mb-8 flex justify-center">
