@@ -8,6 +8,7 @@ export default function RSVPPage() {
   const params = useParams();
   const token = params?.token;
 
+  // Allows changes until end of May 3, 2026
   const CHANGE_DEADLINE = new Date("2026-05-03T23:59:59");
 
   const [guest, setGuest] = useState(null);
@@ -51,7 +52,6 @@ export default function RSVPPage() {
 
     if (token) {
       fetchGuest();
-      fetchStats();
     }
   }, [token]);
 
@@ -204,7 +204,6 @@ export default function RSVPPage() {
       };
 
       setGuest(updatedGuest);
-      await fetchStats();
       showAnimatedSuccess("RSVP submitted successfully.");
     }
   };
@@ -247,7 +246,6 @@ export default function RSVPPage() {
   return (
     <div className="min-h-screen bg-[#f4f1eb] px-4 py-10 md:px-6">
       <div className="mx-auto w-full max-w-5xl">
-
         <div className="mx-auto w-full max-w-4xl rounded-[38px] border border-[#ece7df] bg-white px-6 py-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)] md:px-10 md:py-10">
           <div className="mb-8 flex justify-center">
             <img
