@@ -16,6 +16,29 @@ export default function RSVPPage() {
   const [attendingCount, setAttendingCount] = useState(0);
   const [attendingNames, setAttendingNames] = useState([""]);
 
+  const [stats, setStats] = useState({
+    attending: 0,
+    declined: 0,
+  });
+
+  // 🔥 FETCH STATS
+  const fetchStats = async () => {
+    const { data } = await supabase.from("guests").select("*");
+
+    const attendingTotal = data
+      ?.filter((g) => g.rsvp_status === "attending")
+      .reduce((sum, g) => sum + (g.attending_count || 0), 0);
+
+    const declinedTotal =
+      data?.filter((g) => g.rsvp_status === "declined").length || 0;
+
+    setStats({
+      attending: attendingTotal,
+      declined: declinedTotal,
+    });
+  };
+
+  // 🔥 FETCH GUEST
   useEffect(() => {
     const fetchGuest = async () => {
       const { data } = await supabase
@@ -40,7 +63,10 @@ export default function RSVPPage() {
       setLoading(false);
     };
 
-    if (token) fetchGuest();
+    if (token) {
+      fetchGuest();
+      fetchStats();
+    }
   }, [token]);
 
   const maxGuests = Number(guest?.max_guests || 1);
@@ -70,28 +96,19 @@ export default function RSVPPage() {
   };
 
   const notify = async (payload) => {
-    try {
-      await fetch("/api/notify-rsvp", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-    } catch (e) {
-      console.error("Notify failed", e);
-    }
+    await fetch("/api/notify-rsvp", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
   };
 
   const handleSubmit = async () => {
     if (!guest) return;
 
     if (status === "attending") {
-      if (attendingCount < 1) {
-        alert("Enter how many people are attending.");
-        return;
-      }
-
       const cleaned = attendingNames
         .slice(0, attendingCount)
         .map((n) => n.trim());
@@ -123,12 +140,7 @@ export default function RSVPPage() {
         max_guests: maxGuests,
       });
 
-      setGuest({
-        ...guest,
-        rsvp_status: "attending",
-        attending_count: attendingCount,
-        attending_names: cleaned.join(", "),
-      });
+      fetchStats(); // 🔥 refresh counters
 
       alert("RSVP saved");
       return;
@@ -157,40 +169,46 @@ export default function RSVPPage() {
         max_guests: maxGuests,
       });
 
-      setGuest({
-        ...guest,
-        rsvp_status: "declined",
-        attending_count: 0,
-        attending_names: null,
-      });
+      fetchStats(); // 🔥 refresh counters
 
       alert("RSVP saved");
     }
   };
 
-  if (loading) return <div className="p-10">Loading...</div>;
-  if (!guest) return <div className="p-10">Guest not found</div>;
+  if (loading) return <div className="p-10 text-center">Loading...</div>;
+  if (!guest) return <div className="p-10 text-center">Guest not found</div>;
 
   return (
     <div className="min-h-screen bg-[#f7f1e6] flex items-center justify-center px-6">
-      <div className="bg-white p-10 rounded-2xl shadow-xl max-w-xl w-full text-center">
+      <div className="bg-white p-10 rounded-3xl shadow-xl max-w-xl w-full text-center">
 
         {/* IMAGE */}
         <div className="mb-6 flex justify-center">
-          <img src="/rsvp.png" className="w-72" />
+          <img src="/rsvp.png" className="w-80 object-contain" />
+        </div>
+
+        {/* STATS */}
+        <div className="flex justify-center gap-6 mb-6 text-sm">
+          <div className="bg-green-100 text-green-700 px-4 py-2 rounded-full">
+            Attending: {stats.attending}
+          </div>
+
+          <div className="bg-red-100 text-red-700 px-4 py-2 rounded-full">
+            Not Attending: {stats.declined}
+          </div>
         </div>
 
         {/* TEXT */}
-        <p className="text-sm text-gray-600 mb-6">
-          Please kindly respond by May 3rd 2026.
+        <p className="text-gray-600 mb-6">
+          Please respond by May 3rd 2026
         </p>
 
-        {/* INVITE */}
-        <h2 className="text-2xl font-semibold mb-2">
+        {/* NAME */}
+        <h2 className="text-3xl font-semibold mb-2 text-black">
           {guest.invite_name || guest.family}
         </h2>
 
-        <p className="text-gray-600 mb-6">
+        <p className="text-gray-500 mb-6">
           Invited: {maxGuests}
         </p>
 
@@ -198,7 +216,7 @@ export default function RSVPPage() {
         <select
           value={status}
           onChange={(e) => setStatus(e.target.value)}
-          className="w-full border px-4 py-2 mb-4 text-black"
+          className="w-full border rounded-lg px-4 py-3 mb-4 text-black"
         >
           <option value="pending">Select</option>
           <option value="attending">Attending</option>
@@ -214,7 +232,7 @@ export default function RSVPPage() {
               max={maxGuests}
               value={attendingCount}
               onChange={(e) => handleCountChange(e.target.value)}
-              className="w-full border px-4 py-2 mb-4 text-black"
+              className="w-full border rounded-lg px-4 py-3 mb-4 text-black"
             />
 
             {visibleInputs.map((name, i) => (
@@ -223,7 +241,7 @@ export default function RSVPPage() {
                 value={name}
                 onChange={(e) => handleNameChange(i, e.target.value)}
                 placeholder={`Person ${i + 1}`}
-                className="w-full border px-4 py-2 mb-2 text-black"
+                className="w-full border rounded-lg px-4 py-3 mb-2 text-black"
               />
             ))}
           </>
@@ -233,11 +251,10 @@ export default function RSVPPage() {
         <button
           onClick={handleSubmit}
           disabled={saving}
-          className="mt-4 bg-black text-white px-6 py-2 rounded"
+          className="mt-6 bg-black text-white px-8 py-3 rounded-full hover:bg-gray-800"
         >
-          {saving ? "Saving..." : "Submit"}
+          {saving ? "Saving..." : "Submit RSVP"}
         </button>
-
       </div>
     </div>
   );
