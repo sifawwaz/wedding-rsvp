@@ -79,7 +79,6 @@ export async function POST(req) {
     const html = `
       <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #222;">
         <h2>RSVP Update</h2>
-
         <p><strong>Guest:</strong> ${displayName}</p>
         <p><strong>Status:</strong> ${rsvp_status}</p>
         <p><strong>Invited Count:</strong> ${max_guests ?? 1}</p>
@@ -125,7 +124,7 @@ export async function POST(req) {
     `;
 
     const whatsappMessage = [
-      "📩 RSVP Update",
+      "RSVP Update",
       "",
       `Guest: ${displayName}`,
       `Status: ${rsvp_status}`,
@@ -141,12 +140,11 @@ export async function POST(req) {
       `Total People: ${totalAttendingPeople}`,
     ].join("\n");
 
-    let emailResult = null;
-    let whatsappResult = null;
+    let emailSent = false;
+    let whatsappSent = false;
     let emailError = null;
     let whatsappError = null;
 
-    // Try email if configured
     if (resend && process.env.NOTIFY_EMAIL) {
       try {
         const recipients = (process.env.NOTIFY_EMAIL || "")
@@ -154,8 +152,10 @@ export async function POST(req) {
           .map((email) => email.trim())
           .filter((email) => email.includes("@"));
 
+        console.log("Email recipients:", recipients);
+
         if (recipients.length) {
-          const { data, error } = await resend.emails.send({
+          const { error } = await resend.emails.send({
             from: "Wedding RSVP <onboarding@resend.dev>",
             to: recipients,
             subject,
@@ -166,8 +166,8 @@ export async function POST(req) {
             emailError = error;
             console.error("Resend error:", error);
           } else {
-            emailResult = data;
-            console.log("Resend success:", data);
+            emailSent = true;
+            console.log("Email sent successfully");
           }
         }
       } catch (err) {
@@ -176,39 +176,46 @@ export async function POST(req) {
       }
     }
 
-    // Try WhatsApp if configured
-    if (
-      process.env.WHATSAPP_NOTIFY_PHONE &&
-      process.env.WHATSAPP_NOTIFY_API_KEY
-    ) {
-      try {
-        const phone = process.env.WHATSAPP_NOTIFY_PHONE.replace(/[^\d]/g, "");
-        const apiKey = process.env.WHATSAPP_NOTIFY_API_KEY;
+    const phone = (process.env.WHATSAPP_NOTIFY_PHONE || "").replace(/[^\d]/g, "");
+    const apiKey = process.env.WHATSAPP_NOTIFY_API_KEY || "";
 
+    console.log("WhatsApp phone present:", !!phone);
+    console.log("WhatsApp API key present:", !!apiKey);
+
+    if (phone && apiKey) {
+      try {
         const url = `https://api.callmebot.com/whatsapp.php?phone=${phone}&text=${encodeURIComponent(
           whatsappMessage
         )}&apikey=${encodeURIComponent(apiKey)}`;
 
+        console.log("Calling CallMeBot");
+
         const response = await fetch(url, { method: "GET" });
         const text = await response.text();
+
+        console.log("CallMeBot status:", response.status);
+        console.log("CallMeBot response:", text);
 
         if (!response.ok) {
           whatsappError = text || `HTTP ${response.status}`;
           console.error("WhatsApp error:", whatsappError);
         } else {
-          whatsappResult = text;
-          console.log("WhatsApp success:", text);
+          whatsappSent = true;
+          console.log("WhatsApp sent successfully");
         }
       } catch (err) {
         whatsappError = String(err);
         console.error("WhatsApp send failed:", err);
       }
+    } else {
+      whatsappError = "Missing WHATSAPP_NOTIFY_PHONE or WHATSAPP_NOTIFY_API_KEY";
+      console.error(whatsappError);
     }
 
     return Response.json({
       success: true,
-      emailSent: !!emailResult,
-      whatsappSent: !!whatsappResult,
+      emailSent,
+      whatsappSent,
       emailError,
       whatsappError,
     });
