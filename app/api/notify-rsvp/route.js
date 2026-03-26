@@ -10,6 +10,29 @@ const supabase = createClient(
 
 export async function POST(req) {
   try {
+    if (!process.env.RESEND_API_KEY) {
+      console.error("Missing RESEND_API_KEY");
+      return Response.json({ success: false, error: "Missing RESEND_API_KEY" }, { status: 500 });
+    }
+
+    if (!process.env.NOTIFY_EMAIL) {
+      console.error("Missing NOTIFY_EMAIL");
+      return Response.json({ success: false, error: "Missing NOTIFY_EMAIL" }, { status: 500 });
+    }
+
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      console.error("Missing NEXT_PUBLIC_SUPABASE_URL");
+      return Response.json({ success: false, error: "Missing NEXT_PUBLIC_SUPABASE_URL" }, { status: 500 });
+    }
+
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error("Missing SUPABASE_SERVICE_ROLE_KEY");
+      return Response.json(
+        { success: false, error: "Missing SUPABASE_SERVICE_ROLE_KEY" },
+        { status: 500 }
+      );
+    }
+
     const body = await req.json();
 
     const {
@@ -122,21 +145,29 @@ export async function POST(req) {
       </div>
     `;
 
-    const { error } = await resend.emails.send({
+    const recipients = process.env.NOTIFY_EMAIL
+      .split(",")
+      .map((email) => email.trim())
+      .filter(Boolean);
+
+    console.log("Sending RSVP email to:", recipients);
+
+    const { data, error } = await resend.emails.send({
       from: "Wedding RSVP <onboarding@resend.dev>",
-      to: process.env.NOTIFY_EMAIL.split(","),
+      to: recipients,
       subject,
       html,
     });
 
     if (error) {
       console.error("Resend error:", error);
-      return Response.json({ success: false }, { status: 500 });
+      return Response.json({ success: false, error }, { status: 500 });
     }
 
-    return Response.json({ success: true });
+    console.log("Resend success:", data);
+    return Response.json({ success: true, data });
   } catch (error) {
     console.error("Notify RSVP route error:", error);
-    return Response.json({ success: false }, { status: 500 });
+    return Response.json({ success: false, error: String(error) }, { status: 500 });
   }
 }
