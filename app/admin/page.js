@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 export default function AdminPage() {
@@ -12,6 +12,17 @@ export default function AdminPage() {
   const [newFamily, setNewFamily] = useState("");
   const [newMaxGuests, setNewMaxGuests] = useState(1);
   const [addingGuest, setAddingGuest] = useState(false);
+
+  const [editingId, setEditingId] = useState(null);
+  const [editInviteName, setEditInviteName] = useState("");
+  const [editFamily, setEditFamily] = useState("");
+  const [editMaxGuests, setEditMaxGuests] = useState(1);
+
+  const [uploadingCsv, setUploadingCsv] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const baseUrl =
+    process.env.NEXT_PUBLIC_SITE_URL || "https://wedding-rsvp.vercel.app";
 
   useEffect(() => {
     fetchGuests();
@@ -31,9 +42,6 @@ export default function AdminPage() {
     setGuests(data || []);
   };
 
-  const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || "https://wedding-rsvp.vercel.app";
-
   const generateToken = (length = 12) => {
     const chars =
       "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -44,6 +52,29 @@ export default function AdminPage() {
     }
 
     return result;
+  };
+
+  const getUniqueToken = async () => {
+    let token = generateToken();
+    let exists = true;
+
+    while (exists) {
+      const { data, error } = await supabase
+        .from("guests")
+        .select("id")
+        .eq("token", token)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (!data) {
+        exists = false;
+      } else {
+        token = generateToken();
+      }
+    }
+
+    return token;
   };
 
   const generateLinks = (guest) => {
@@ -67,30 +98,7 @@ export default function AdminPage() {
     setAddingGuest(true);
 
     try {
-      let token = generateToken();
-      let exists = true;
-
-      while (exists) {
-        const { data, error } = await supabase
-          .from("guests")
-          .select("id")
-          .eq("token", token)
-          .maybeSingle();
-
-        if (error) {
-          console.error("Error checking token:", error);
-          alert("Could not generate guest token.");
-          setAddingGuest(false);
-          return;
-        }
-
-        if (!data) {
-          exists = false;
-        } else {
-          token = generateToken();
-        }
-      }
-
+      const token = await getUniqueToken();
       const rsvpPath = `/rsvp/${token}`;
       const rsvpLink = `${baseUrl}${rsvpPath}`;
 
@@ -103,6 +111,8 @@ export default function AdminPage() {
         rsvp_link: rsvpLink,
         rsvp_status: "pending",
         attending_count: 0,
+        men_count: 0,
+        women_count: 0,
         attending_names: null,
       };
 
@@ -111,7 +121,6 @@ export default function AdminPage() {
       if (error) {
         console.error("Error adding guest:", error);
         alert("Could not add guest.");
-        setAddingGuest(false);
         return;
       }
 
@@ -122,6 +131,75 @@ export default function AdminPage() {
     } finally {
       setAddingGuest(false);
     }
+  };
+
+  const startEdit = (guest) => {
+    setEditingId(guest.id);
+    setEditInviteName(guest.invite_name || "");
+    setEditFamily(guest.family || "");
+    setEditMaxGuests(guest.max_guests || 1);
+  };
+
+  const saveEdit = async (guest) => {
+    const { error } = await supabase
+      .from("guests")
+      .update({
+        invite_name: editInviteName.trim(),
+        family: editFamily.trim() || null,
+        max_guests: Number(editMaxGuests) || 1,
+      })
+      .eq("id", guest.id);
+
+    if (error) {
+      alert("Could not save changes.");
+      return;
+    }
+
+    setEditingId(null);
+    await fetchGuests();
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditInviteName("");
+    setEditFamily("");
+    setEditMaxGuests(1);
+  };
+
+  const resetRsvp = async (guest) => {
+    const { error } = await supabase
+      .from("guests")
+      .update({
+        rsvp_status: "pending",
+        attending_count: 0,
+        men_count: 0,
+        women_count: 0,
+        attending_names: null,
+      })
+      .eq("id", guest.id);
+
+    if (error) {
+      alert("Could not reset RSVP.");
+      return;
+    }
+
+    await fetchGuests();
+  };
+
+  const deleteGuest = async (guest) => {
+    const confirmed = window.confirm(
+      `Delete ${guest.invite_name || guest.family || "this guest"}?`
+    );
+    if (!confirmed) return;
+
+    const { error } = await supabase.from("guests").delete().eq("id", guest.id);
+
+    if (error) {
+      alert("Could not delete guest.");
+      return;
+    }
+
+    await fetchGuests();
   };
 
   const copyLink = async (guest) => {
@@ -136,8 +214,120 @@ export default function AdminPage() {
     }
   };
 
+  const parseCsvText = (text) => {
+    const lines = text
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    if (!lines.length) return [];
+
+    const splitCsvLine = (line) => {
+      const result = [];
+      let current = "";
+      let inQuotes = false;
+
+      for (let i = 0; i < line.length; i += 1) {
+        const char = line[i];
+        const next = line[i + 1];
+
+        if (char === '"' && inQuotes && next === '"') {
+          current += '"';
+          i += 1;
+        } else if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === "," && !inQuotes) {
+          result.push(current.trim());
+          current = "";
+        } else {
+          current += char;
+        }
+      }
+
+      result.push(current.trim());
+      return result.map((v) => v.replace(/^"|"$/g, ""));
+    };
+
+    const headers = splitCsvLine(lines[0]).map((h) => h.toLowerCase());
+
+    return lines.slice(1).map((line) => {
+      const values = splitCsvLine(line);
+      const row = {};
+      headers.forEach((header, index) => {
+        row[header] = values[index] ?? "";
+      });
+      return row;
+    });
+  };
+
+  const handleCsvUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploadingCsv(true);
+
+    try {
+      const text = await file.text();
+      const rows = parseCsvText(text);
+
+      const payloads = [];
+
+      for (const row of rows) {
+        const inviteName = row.invite_name?.trim() || "";
+        const family = row.family?.trim() || "";
+        const maxGuests = Number(row.max_guests || 1) || 1;
+
+        if (!inviteName && !family) continue;
+
+        const token = row.token?.trim() || (await getUniqueToken());
+        const rsvpPath = `/rsvp/${token}`;
+        const rsvpLink = `${baseUrl}${rsvpPath}`;
+
+        payloads.push({
+          invite_name: inviteName || null,
+          family: family || null,
+          max_guests: maxGuests,
+          token,
+          rsvp_path: rsvpPath,
+          rsvp_link: rsvpLink,
+          rsvp_status: "pending",
+          attending_count: 0,
+          men_count: 0,
+          women_count: 0,
+          attending_names: null,
+        });
+      }
+
+      if (!payloads.length) {
+        alert("No valid guest rows found in CSV.");
+        return;
+      }
+
+      const { error } = await supabase.from("guests").insert(payloads);
+
+      if (error) {
+        console.error(error);
+        alert("Could not upload CSV.");
+        return;
+      }
+
+      await fetchGuests();
+      alert("CSV uploaded successfully.");
+    } finally {
+      setUploadingCsv(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   const stats = useMemo(() => {
-    const attending = guests.filter((g) => g.rsvp_status === "attending").length;
+    const attendingHouseholds = guests.filter(
+      (g) => g.rsvp_status === "attending"
+    ).length;
+
+    const attendingPeople = guests
+      .filter((g) => g.rsvp_status === "attending")
+      .reduce((sum, g) => sum + Number(g.attending_count || 0), 0);
+
     const declined = guests.filter((g) => g.rsvp_status === "declined").length;
     const pending = guests.filter(
       (g) => !g.rsvp_status || g.rsvp_status === "pending"
@@ -145,7 +335,8 @@ export default function AdminPage() {
 
     return {
       total: guests.length,
-      attending,
+      attendingHouseholds,
+      attendingPeople,
       declined,
       pending,
     };
@@ -176,52 +367,81 @@ export default function AdminPage() {
           RSVP Dashboard
         </h1>
         <p className="mb-8 text-zinc-600">
-          Manage invitations, create guests, copy RSVP links, and track live
-          responses.
+          Manage guests, upload CSVs, generate links, edit invites, and control
+          RSVPs.
         </p>
 
-        <div className="mb-8 rounded-2xl border bg-white p-5 shadow-sm">
-          <h2 className="mb-4 text-xl font-semibold text-zinc-900">
-            Add Guest
-          </h2>
+        <div className="mb-8 grid gap-4 lg:grid-cols-2">
+          <div className="rounded-2xl border bg-white p-5 shadow-sm">
+            <h2 className="mb-4 text-xl font-semibold text-zinc-900">
+              Add Guest
+            </h2>
 
-          <div className="grid gap-4 md:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-4">
+              <input
+                type="text"
+                placeholder="Invite name"
+                value={newInviteName}
+                onChange={(e) => setNewInviteName(e.target.value)}
+                className="rounded-lg border bg-white px-4 py-3 text-black placeholder:text-black"
+              />
+
+              <input
+                type="text"
+                placeholder="Family (optional)"
+                value={newFamily}
+                onChange={(e) => setNewFamily(e.target.value)}
+                className="rounded-lg border bg-white px-4 py-3 text-black placeholder:text-black"
+              />
+
+              <input
+                type="number"
+                min="1"
+                placeholder="Max guests"
+                value={newMaxGuests}
+                onChange={(e) => setNewMaxGuests(e.target.value)}
+                className="rounded-lg border bg-white px-4 py-3 text-black placeholder:text-black"
+              />
+
+              <button
+                onClick={addGuest}
+                disabled={addingGuest}
+                className="rounded-lg bg-black px-4 py-3 text-white hover:bg-zinc-800 disabled:opacity-60"
+              >
+                {addingGuest ? "Adding..." : "Add Guest"}
+              </button>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border bg-white p-5 shadow-sm">
+            <h2 className="mb-4 text-xl font-semibold text-zinc-900">
+              Upload CSV
+            </h2>
+
+            <p className="mb-4 text-sm text-zinc-600">
+              Use headers like: <span className="font-semibold">invite_name</span>,{" "}
+              <span className="font-semibold">family</span>,{" "}
+              <span className="font-semibold">max_guests</span>, optionally{" "}
+              <span className="font-semibold">token</span>.
+            </p>
+
             <input
-              type="text"
-              placeholder="Invite name"
-              value={newInviteName}
-              onChange={(e) => setNewInviteName(e.target.value)}
-              className="rounded-lg border bg-white px-4 py-3 text-black placeholder:text-black"
+              ref={fileInputRef}
+              type="file"
+              accept=".csv"
+              onChange={handleCsvUpload}
+              className="mb-3 block w-full rounded-lg border bg-white px-4 py-3 text-black"
             />
 
-            <input
-              type="text"
-              placeholder="Family (optional)"
-              value={newFamily}
-              onChange={(e) => setNewFamily(e.target.value)}
-              className="rounded-lg border bg-white px-4 py-3 text-black placeholder:text-black"
-            />
-
-            <input
-              type="number"
-              min="1"
-              placeholder="Max guests"
-              value={newMaxGuests}
-              onChange={(e) => setNewMaxGuests(e.target.value)}
-              className="rounded-lg border bg-white px-4 py-3 text-black placeholder:text-black"
-            />
-
-            <button
-              onClick={addGuest}
-              disabled={addingGuest}
-              className="rounded-lg bg-black px-4 py-3 text-white hover:bg-zinc-800 disabled:opacity-60"
-            >
-              {addingGuest ? "Adding..." : "Add Guest"}
-            </button>
+            <p className="text-sm text-zinc-500">
+              {uploadingCsv
+                ? "Uploading CSV..."
+                : "Tokens and RSVP links will be auto-generated if missing."}
+            </p>
           </div>
         </div>
 
-        <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <div className="rounded-2xl border bg-white p-5 shadow-sm">
             <p className="text-sm text-zinc-500">Total Invites</p>
             <p className="mt-2 text-3xl font-bold text-zinc-900">
@@ -230,9 +450,16 @@ export default function AdminPage() {
           </div>
 
           <div className="rounded-2xl border bg-white p-5 shadow-sm">
-            <p className="text-sm text-zinc-500">Attending</p>
+            <p className="text-sm text-zinc-500">Attending Households</p>
             <p className="mt-2 text-3xl font-bold text-green-600">
-              {stats.attending}
+              {stats.attendingHouseholds}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border bg-white p-5 shadow-sm">
+            <p className="text-sm text-zinc-500">Attending People</p>
+            <p className="mt-2 text-3xl font-bold text-emerald-600">
+              {stats.attendingPeople}
             </p>
           </div>
 
@@ -252,49 +479,19 @@ export default function AdminPage() {
         </div>
 
         <div className="mb-6 flex flex-wrap gap-3">
-          <button
-            onClick={() => setFilter("all")}
-            className={`rounded-full px-5 py-2 font-medium ${
-              filter === "all"
-                ? "bg-black text-white"
-                : "border bg-white text-zinc-700"
-            }`}
-          >
-            All
-          </button>
-
-          <button
-            onClick={() => setFilter("attending")}
-            className={`rounded-full px-5 py-2 font-medium ${
-              filter === "attending"
-                ? "bg-green-600 text-white"
-                : "border bg-white text-zinc-700"
-            }`}
-          >
-            Attending
-          </button>
-
-          <button
-            onClick={() => setFilter("declined")}
-            className={`rounded-full px-5 py-2 font-medium ${
-              filter === "declined"
-                ? "bg-red-600 text-white"
-                : "border bg-white text-zinc-700"
-            }`}
-          >
-            Not Attending
-          </button>
-
-          <button
-            onClick={() => setFilter("pending")}
-            className={`rounded-full px-5 py-2 font-medium ${
-              filter === "pending"
-                ? "bg-amber-500 text-white"
-                : "border bg-white text-zinc-700"
-            }`}
-          >
-            Pending
-          </button>
+          {["all", "attending", "declined", "pending"].map((value) => (
+            <button
+              key={value}
+              onClick={() => setFilter(value)}
+              className={`rounded-full px-5 py-2 font-medium ${
+                filter === value
+                  ? "bg-black text-white"
+                  : "border bg-white text-zinc-700"
+              }`}
+            >
+              {value.charAt(0).toUpperCase() + value.slice(1)}
+            </button>
+          ))}
         </div>
 
         <div className="overflow-x-auto rounded-2xl border bg-white shadow-sm">
@@ -308,13 +505,16 @@ export default function AdminPage() {
                   Family
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-zinc-700">
-                  Invited
+                  Max
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-zinc-700">
-                  Attending
+                  Men
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-zinc-700">
-                  Names
+                  Women
+                </th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-zinc-700">
+                  Total
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-zinc-700">
                   Status
@@ -331,27 +531,58 @@ export default function AdminPage() {
             <tbody>
               {filteredGuests.map((guest) => {
                 const links = generateLinks(guest);
+                const isEditing = editingId === guest.id;
 
                 return (
                   <tr key={guest.id} className="border-t align-top">
                     <td className="px-4 py-3 text-zinc-900">
-                      {guest.invite_name || "-"}
+                      {isEditing ? (
+                        <input
+                          value={editInviteName}
+                          onChange={(e) => setEditInviteName(e.target.value)}
+                          className="w-full rounded border px-3 py-2 text-black"
+                        />
+                      ) : (
+                        guest.invite_name || "-"
+                      )}
                     </td>
 
                     <td className="px-4 py-3 text-zinc-700">
-                      {guest.family || "-"}
+                      {isEditing ? (
+                        <input
+                          value={editFamily}
+                          onChange={(e) => setEditFamily(e.target.value)}
+                          className="w-full rounded border px-3 py-2 text-black"
+                        />
+                      ) : (
+                        guest.family || "-"
+                      )}
                     </td>
 
                     <td className="px-4 py-3 text-zinc-700">
-                      {guest.max_guests ?? 1}
+                      {isEditing ? (
+                        <input
+                          type="number"
+                          min="1"
+                          value={editMaxGuests}
+                          onChange={(e) => setEditMaxGuests(e.target.value)}
+                          className="w-20 rounded border px-3 py-2 text-black"
+                        />
+                      ) : (
+                        guest.max_guests ?? 1
+                      )}
+                    </td>
+
+                    <td className="px-4 py-3 text-zinc-700">
+                      {guest.men_count ?? 0}
+                    </td>
+
+                    <td className="px-4 py-3 text-zinc-700">
+                      {guest.women_count ?? 0}
                     </td>
 
                     <td className="px-4 py-3 text-zinc-700">
                       {guest.attending_count ?? 0}
-                    </td>
-
-                    <td className="px-4 py-3 text-zinc-700">
-                      {guest.attending_names || "-"}
                     </td>
 
                     <td className="px-4 py-3">
@@ -381,26 +612,55 @@ export default function AdminPage() {
 
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-2">
-                        <button
-                          onClick={() => copyLink(guest)}
-                          className="rounded bg-zinc-800 px-3 py-1 text-sm text-white hover:bg-zinc-700"
-                        >
-                          {copiedId === guest.id ? "Copied" : "Copy Link"}
-                        </button>
-
-                        <button
-                          onClick={() => window.open(links.whatsapp, "_blank")}
-                          className="rounded bg-green-500 px-3 py-1 text-sm text-white hover:bg-green-600"
-                        >
-                          WhatsApp
-                        </button>
-
-                        <button
-                          onClick={() => window.open(links.sms, "_blank")}
-                          className="rounded bg-blue-500 px-3 py-1 text-sm text-white hover:bg-blue-600"
-                        >
-                          SMS
-                        </button>
+                        {isEditing ? (
+                          <>
+                            <button
+                              onClick={() => saveEdit(guest)}
+                              className="rounded bg-emerald-600 px-3 py-1 text-sm text-white"
+                            >
+                              Save
+                            </button>
+                            <button
+                              onClick={cancelEdit}
+                              className="rounded bg-zinc-500 px-3 py-1 text-sm text-white"
+                            >
+                              Cancel
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => startEdit(guest)}
+                              className="rounded bg-amber-600 px-3 py-1 text-sm text-white"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => resetRsvp(guest)}
+                              className="rounded bg-purple-600 px-3 py-1 text-sm text-white"
+                            >
+                              Reset RSVP
+                            </button>
+                            <button
+                              onClick={() => deleteGuest(guest)}
+                              className="rounded bg-red-600 px-3 py-1 text-sm text-white"
+                            >
+                              Delete
+                            </button>
+                            <button
+                              onClick={() => copyLink(guest)}
+                              className="rounded bg-zinc-800 px-3 py-1 text-sm text-white"
+                            >
+                              {copiedId === guest.id ? "Copied" : "Copy"}
+                            </button>
+                            <button
+                              onClick={() => window.open(links.whatsapp, "_blank")}
+                              className="rounded bg-green-500 px-3 py-1 text-sm text-white"
+                            >
+                              WhatsApp
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -410,7 +670,7 @@ export default function AdminPage() {
               {filteredGuests.length === 0 && (
                 <tr>
                   <td
-                    colSpan="8"
+                    colSpan="9"
                     className="px-4 py-8 text-center text-zinc-500"
                   >
                     No guests found for this filter.
