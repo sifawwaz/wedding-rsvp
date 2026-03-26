@@ -17,69 +17,126 @@ export async function POST(req) {
       family,
       rsvp_status,
       attending_count,
-      attending_names,
+      men_count,
+      women_count,
       max_guests,
     } = body;
 
     const displayName = invite_name || family || "Guest";
 
-    // 🔥 GET FULL ATTENDING LIST
-    const { data: attendingGuests } = await supabase
+    const { data: attendingGuests, error: attendingError } = await supabase
       .from("guests")
-      .select("invite_name, family, attending_count, attending_names")
+      .select(
+        "invite_name, family, attending_count, men_count, women_count, max_guests"
+      )
       .eq("rsvp_status", "attending")
       .order("invite_name", { ascending: true });
 
-    const rows = (attendingGuests || [])
-      .map((g, i) => {
-        const name = g.invite_name || g.family || "Guest";
+    if (attendingError) {
+      console.error("Error fetching attending list:", attendingError);
+    }
+
+    const totalAttendingPeople = (attendingGuests || []).reduce(
+      (sum, guest) => sum + Number(guest.attending_count || 0),
+      0
+    );
+
+    const totalAttendingMen = (attendingGuests || []).reduce(
+      (sum, guest) => sum + Number(guest.men_count || 0),
+      0
+    );
+
+    const totalAttendingWomen = (attendingGuests || []).reduce(
+      (sum, guest) => sum + Number(guest.women_count || 0),
+      0
+    );
+
+    const formattedAttendingList = (attendingGuests || [])
+      .map((guest, index) => {
+        const name = guest.invite_name || guest.family || "Guest";
+        const count = guest.attending_count || 0;
+        const men = guest.men_count || 0;
+        const women = guest.women_count || 0;
+        const invited = guest.max_guests || 1;
+
         return `
           <tr>
-            <td style="padding:6px;border:1px solid #ddd;">${i + 1}</td>
-            <td style="padding:6px;border:1px solid #ddd;">${name}</td>
-            <td style="padding:6px;border:1px solid #ddd;">${g.attending_count || 0}</td>
-            <td style="padding:6px;border:1px solid #ddd;">${g.attending_names || "-"}</td>
+            <td style="padding:8px; border:1px solid #ddd;">${index + 1}</td>
+            <td style="padding:8px; border:1px solid #ddd;">${name}</td>
+            <td style="padding:8px; border:1px solid #ddd;">${invited}</td>
+            <td style="padding:8px; border:1px solid #ddd;">${men}</td>
+            <td style="padding:8px; border:1px solid #ddd;">${women}</td>
+            <td style="padding:8px; border:1px solid #ddd;">${count}</td>
           </tr>
         `;
       })
       .join("");
 
+    const subject = `RSVP Update: ${displayName}`;
+
     const html = `
-      <div style="font-family: Arial;">
+      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #222;">
         <h2>RSVP Update</h2>
 
-        <p><b>Guest:</b> ${displayName}</p>
-        <p><b>Status:</b> ${rsvp_status}</p>
-        <p><b>Invited:</b> ${max_guests ?? 1}</p>
-        <p><b>Attending:</b> ${attending_count ?? 0}</p>
-        <p><b>Names:</b> ${attending_names || "-"}</p>
+        <p><strong>Guest:</strong> ${displayName}</p>
+        <p><strong>Status:</strong> ${rsvp_status}</p>
+        <p><strong>Invited Count:</strong> ${max_guests ?? 1}</p>
+        <p><strong>Men Attending:</strong> ${men_count ?? 0}</p>
+        <p><strong>Women Attending:</strong> ${women_count ?? 0}</p>
+        <p><strong>Total Attending:</strong> ${attending_count ?? 0}</p>
 
-        <hr />
+        <hr style="margin: 24px 0;" />
 
-        <h3>Full Attending List</h3>
+        <h3>Current Attending Summary</h3>
+        <p><strong>Total Attending Households:</strong> ${(attendingGuests || []).length}</p>
+        <p><strong>Total Men:</strong> ${totalAttendingMen}</p>
+        <p><strong>Total Women:</strong> ${totalAttendingWomen}</p>
+        <p><strong>Total People:</strong> ${totalAttendingPeople}</p>
 
-        <table style="border-collapse:collapse;width:100%;">
-          <tr>
-            <th style="border:1px solid #ddd;padding:6px;">#</th>
-            <th style="border:1px solid #ddd;padding:6px;">Guest</th>
-            <th style="border:1px solid #ddd;padding:6px;">Count</th>
-            <th style="border:1px solid #ddd;padding:6px;">Names</th>
-          </tr>
-          ${rows}
+        <h3 style="margin-top: 24px;">Current Full Attending List</h3>
+
+        <table style="border-collapse: collapse; width: 100%; margin-top: 12px;">
+          <thead>
+            <tr>
+              <th style="padding:8px; border:1px solid #ddd; background:#f5f5f5;">#</th>
+              <th style="padding:8px; border:1px solid #ddd; background:#f5f5f5;">Guest</th>
+              <th style="padding:8px; border:1px solid #ddd; background:#f5f5f5;">Invited</th>
+              <th style="padding:8px; border:1px solid #ddd; background:#f5f5f5;">Men</th>
+              <th style="padding:8px; border:1px solid #ddd; background:#f5f5f5;">Women</th>
+              <th style="padding:8px; border:1px solid #ddd; background:#f5f5f5;">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${
+              formattedAttendingList ||
+              `
+              <tr>
+                <td colspan="6" style="padding:8px; border:1px solid #ddd;">
+                  No guests attending yet.
+                </td>
+              </tr>
+            `
+            }
+          </tbody>
         </table>
       </div>
     `;
 
-    await resend.emails.send({
+    const { error } = await resend.emails.send({
       from: "Wedding RSVP <onboarding@resend.dev>",
-      to: process.env.NOTIFY_EMAIL,
-      subject: `RSVP: ${displayName}`,
+      to: [process.env.NOTIFY_EMAIL],
+      subject,
       html,
     });
 
+    if (error) {
+      console.error("Resend error:", error);
+      return Response.json({ success: false }, { status: 500 });
+    }
+
     return Response.json({ success: true });
-  } catch (err) {
-    console.error(err);
+  } catch (error) {
+    console.error("Notify RSVP route error:", error);
     return Response.json({ success: false }, { status: 500 });
   }
 }
