@@ -124,7 +124,7 @@ export async function POST(req) {
 
     const { error } = await resend.emails.send({
       from: "Wedding RSVP <onboarding@resend.dev>",
-      to: [process.env.NOTIFY_EMAIL],
+      to: process.env.NOTIFY_EMAIL.split(","),
       subject,
       html,
     });
