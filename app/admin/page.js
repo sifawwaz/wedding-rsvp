@@ -121,7 +121,8 @@ export default function AdminPage() {
   const generateLinks = (guest) => {
     const url = `${baseUrl}/rsvp/${guest.token}`;
     const displayName = guest.invite_name || guest.family || "Guest";
-    const message = `\n السَّلاَمُ عَلَيْكُمْ وَرَحْمَةُ اللهِ وَبَرَكَاتُهُ \n ${displayName}, welcome to Ayman & Abdul Bari's RSVP page. Please RSVP here: ${url}`;
+    const message = `السَّلاَمُ عَلَيْكُمْ وَرَحْمَةُ اللهِ وَبَرَكَاتُهُ 
+    ${displayName}, welcome to Ayman & Abdul Bari's RSVP page. Please RSVP here: ${url}`;
 
     return {
       url,
