@@ -12,17 +12,26 @@ export async function POST(req) {
   try {
     if (!process.env.RESEND_API_KEY) {
       console.error("Missing RESEND_API_KEY");
-      return Response.json({ success: false, error: "Missing RESEND_API_KEY" }, { status: 500 });
+      return Response.json(
+        { success: false, error: "Missing RESEND_API_KEY" },
+        { status: 500 }
+      );
     }
 
     if (!process.env.NOTIFY_EMAIL) {
       console.error("Missing NOTIFY_EMAIL");
-      return Response.json({ success: false, error: "Missing NOTIFY_EMAIL" }, { status: 500 });
+      return Response.json(
+        { success: false, error: "Missing NOTIFY_EMAIL" },
+        { status: 500 }
+      );
     }
 
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
       console.error("Missing NEXT_PUBLIC_SUPABASE_URL");
-      return Response.json({ success: false, error: "Missing NEXT_PUBLIC_SUPABASE_URL" }, { status: 500 });
+      return Response.json(
+        { success: false, error: "Missing NEXT_PUBLIC_SUPABASE_URL" },
+        { status: 500 }
+      );
     }
 
     if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -145,12 +154,20 @@ export async function POST(req) {
       </div>
     `;
 
-    const recipients = process.env.NOTIFY_EMAIL
+    const recipients = (process.env.NOTIFY_EMAIL || "")
       .split(",")
       .map((email) => email.trim())
-      .filter(Boolean);
+      .filter((email) => email.includes("@"));
 
-    console.log("Sending RSVP email to:", recipients);
+    console.log("Recipients:", recipients);
+
+    if (!recipients.length) {
+      console.error("No valid recipients found in NOTIFY_EMAIL");
+      return Response.json(
+        { success: false, error: "No valid recipients found" },
+        { status: 500 }
+      );
+    }
 
     const { data, error } = await resend.emails.send({
       from: "Wedding RSVP <onboarding@resend.dev>",
@@ -168,6 +185,9 @@ export async function POST(req) {
     return Response.json({ success: true, data });
   } catch (error) {
     console.error("Notify RSVP route error:", error);
-    return Response.json({ success: false, error: String(error) }, { status: 500 });
+    return Response.json(
+      { success: false, error: String(error) },
+      { status: 500 }
+    );
   }
 }
