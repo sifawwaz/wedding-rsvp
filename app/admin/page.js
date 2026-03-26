@@ -4,6 +4,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 export default function AdminPage() {
+  const [authorized, setAuthorized] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+  const [password, setPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
+
   const [guests, setGuests] = useState([]);
   const [filter, setFilter] = useState("all");
   const [copiedId, setCopiedId] = useState(null);
@@ -25,8 +30,44 @@ export default function AdminPage() {
     process.env.NEXT_PUBLIC_SITE_URL || "https://wedding-rsvp.vercel.app";
 
   useEffect(() => {
-    fetchGuests();
+    const saved = sessionStorage.getItem("admin-auth");
+    if (saved === "true") {
+      setAuthorized(true);
+    }
+    setCheckingAuth(false);
   }, []);
+
+  useEffect(() => {
+    if (authorized) {
+      fetchGuests();
+    }
+  }, [authorized]);
+
+  const login = async () => {
+    setLoginError("");
+
+    const res = await fetch("/api/admin-login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ password }),
+    });
+
+    if (!res.ok) {
+      setLoginError("Incorrect password.");
+      return;
+    }
+
+    sessionStorage.setItem("admin-auth", "true");
+    setAuthorized(true);
+    setPassword("");
+  };
+
+  const logout = () => {
+    sessionStorage.removeItem("admin-auth");
+    setAuthorized(false);
+  };
 
   const fetchGuests = async () => {
     const { data, error } = await supabase
@@ -269,7 +310,6 @@ export default function AdminPage() {
     try {
       const text = await file.text();
       const rows = parseCsvText(text);
-
       const payloads = [];
 
       for (const row of rows) {
@@ -360,16 +400,69 @@ export default function AdminPage() {
     return guests;
   }, [guests, filter]);
 
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-zinc-50">
+        Loading...
+      </div>
+    );
+  }
+
+  if (!authorized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-zinc-50 px-6">
+        <div className="w-full max-w-md rounded-3xl border bg-white p-8 shadow-sm">
+          <h1 className="mb-2 text-2xl font-bold text-zinc-900">
+            Admin Login
+          </h1>
+          <p className="mb-5 text-zinc-600">
+            Enter the admin password to access the dashboard.
+          </p>
+
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="mb-4 w-full rounded-lg border bg-white px-4 py-3 text-black"
+            placeholder="Password"
+          />
+
+          {loginError && (
+            <p className="mb-4 text-sm text-red-600">{loginError}</p>
+          )}
+
+          <button
+            onClick={login}
+            className="w-full rounded-lg bg-black px-4 py-3 text-white hover:bg-zinc-800"
+          >
+            Login
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-zinc-50 p-6 md:p-10">
       <div className="mx-auto max-w-7xl">
-        <h1 className="mb-2 text-3xl font-bold text-zinc-900">
-          RSVP Dashboard
-        </h1>
-        <p className="mb-8 text-zinc-600">
-          Manage guests, upload CSVs, generate links, edit invites, and control
-          RSVPs.
-        </p>
+        <div className="mb-6 flex items-center justify-between gap-4">
+          <div>
+            <h1 className="mb-2 text-3xl font-bold text-zinc-900">
+              RSVP Dashboard
+            </h1>
+            <p className="text-zinc-600">
+              Manage guests, upload CSVs, generate links, edit invites, and control
+              RSVPs.
+            </p>
+          </div>
+
+          <button
+            onClick={logout}
+            className="rounded-lg bg-zinc-800 px-4 py-2 text-white hover:bg-zinc-700"
+          >
+            Logout
+          </button>
+        </div>
 
         <div className="mb-8 grid gap-4 lg:grid-cols-2">
           <div className="rounded-2xl border bg-white p-5 shadow-sm">
