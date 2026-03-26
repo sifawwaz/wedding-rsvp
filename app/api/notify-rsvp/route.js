@@ -123,22 +123,28 @@ export async function POST(req) {
       </div>
     `;
 
-    const whatsappMessage = [
-      "RSVP Update",
-      "",
-      `Guest: ${displayName}`,
-      `Status: ${rsvp_status}`,
-      `Invited: ${max_guests ?? 1}`,
-      `Men: ${men_count ?? 0}`,
-      `Women: ${women_count ?? 0}`,
-      `Total: ${attending_count ?? 0}`,
-      "",
-      "Current Summary",
-      `Households: ${(attendingGuests || []).length}`,
-      `Total Men: ${totalAttendingMen}`,
-      `Total Women: ${totalAttendingWomen}`,
-      `Total People: ${totalAttendingPeople}`,
-    ].join("\n");
+   const now = new Date().toLocaleString();
+
+    const whatsappMessage = `
+    📩 RSVP Update
+
+    👤 ${displayName}
+
+    📌 Status: ${rsvp_status === "attending" ? "Attending" : "Not Attending"}
+
+    👨 Men: ${men_count || 0}
+    👩 Women: ${women_count || 0}
+    👥 Total: ${attending_count || 0} / ${max_guests || 1}
+
+    ────────────────
+
+    📊 Current Totals
+    👨 Men: ${totalAttendingMen}
+    👩 Women: ${totalAttendingWomen}
+    👥 Total Guests: ${totalAttendingPeople}
+
+    🕒 ${now}
+    `;
 
     let emailSent = false;
     let whatsappSent = false;
