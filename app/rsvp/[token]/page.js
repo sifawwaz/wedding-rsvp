@@ -4,6 +4,51 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
+function Ornament({ className = "" }) {
+  return (
+    <svg viewBox="0 0 120 12" className={className} aria-hidden="true" fill="none">
+      <line x1="0" y1="6" x2="48" y2="6" stroke="currentColor" strokeWidth="0.8" />
+      <circle cx="54" cy="6" r="1.8" fill="currentColor" />
+      <circle cx="60" cy="6" r="3" fill="currentColor" />
+      <circle cx="66" cy="6" r="1.8" fill="currentColor" />
+      <line x1="72" y1="6" x2="120" y2="6" stroke="currentColor" strokeWidth="0.8" />
+    </svg>
+  );
+}
+
+function Stepper({ label, value, onChange, max }) {
+  return (
+    <div className="mb-5 rounded-2xl px-5 py-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+      <p className="mb-3 text-sm font-medium uppercase tracking-[0.2em]" style={{ color: "var(--text-faint)", fontFamily: "var(--font-body)" }}>
+        {label}
+      </p>
+      <div className="flex items-center gap-4">
+        <button
+          type="button"
+          onClick={() => onChange(Math.max(0, value - 1))}
+          className="flex h-10 w-10 items-center justify-center rounded-full text-xl font-light transition active:scale-95"
+          style={{ border: "1px solid var(--border)", color: "var(--text-muted)", background: "white" }}
+          aria-label={`Decrease ${label}`}
+        >
+          −
+        </button>
+        <span className="w-8 text-center text-2xl font-light" style={{ fontFamily: "var(--font-display)", color: "var(--text)" }}>
+          {value}
+        </span>
+        <button
+          type="button"
+          onClick={() => onChange(Math.min(max, value + 1))}
+          className="flex h-10 w-10 items-center justify-center rounded-full text-xl font-light transition active:scale-95"
+          style={{ border: "1px solid var(--border)", color: "var(--text-muted)", background: "white" }}
+          aria-label={`Increase ${label}`}
+        >
+          +
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function RSVPPage() {
   const params = useParams();
   const token = params?.token;
@@ -18,8 +63,7 @@ export default function RSVPPage() {
   const [menCount, setMenCount] = useState(0);
   const [womenCount, setWomenCount] = useState(0);
 
-  const [successMessage, setSuccessMessage] = useState("");
-  const [showSuccess, setShowSuccess] = useState(false);
+  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
 
   const changesOpen = new Date() <= CHANGE_DEADLINE;
 
@@ -32,7 +76,6 @@ export default function RSVPPage() {
         .single();
 
       if (error) {
-        console.error(error);
         setGuest(null);
         setLoading(false);
         return;
@@ -55,43 +98,38 @@ export default function RSVPPage() {
     try {
       await fetch("/api/notify-rsvp", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-    } catch (error) {
-      console.error("Notify failed", error);
+    } catch (e) {
+      console.error("Notify failed", e);
     }
   };
 
-  const showAnimatedSuccess = (message) => {
-    setSuccessMessage(message);
-    setShowSuccess(true);
-    setTimeout(() => setShowSuccess(false), 2600);
+  const showToast = (message, type = "success") => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast((t) => ({ ...t, show: false })), 3000);
   };
 
   const handleSubmit = async () => {
     if (!guest || !changesOpen) return;
 
     if (status === "pending") {
-      showAnimatedSuccess("Please select an RSVP option first.");
+      showToast("Please select whether you are attending.", "info");
       return;
     }
 
     if (status === "attending") {
       if (totalAttending < 1) {
-        showAnimatedSuccess("Please enter how many men and women are attending.");
+        showToast("Please add at least one guest.", "info");
         return;
       }
-
       if (totalAttending > maxGuests) {
-        showAnimatedSuccess(`You cannot exceed ${maxGuests} invited guest(s).`);
+        showToast(`You cannot exceed ${maxGuests} invited guest(s).`, "error");
         return;
       }
 
       setSaving(true);
-
       const { error } = await supabase
         .from("guests")
         .update({
@@ -102,13 +140,9 @@ export default function RSVPPage() {
           attending_names: null,
         })
         .eq("token", token);
-
       setSaving(false);
 
-      if (error) {
-        showAnimatedSuccess("Could not save RSVP. Please try again.");
-        return;
-      }
+      if (error) { showToast("Could not save RSVP. Please try again.", "error"); return; }
 
       await notify({
         invite_name: guest.invite_name,
@@ -120,38 +154,20 @@ export default function RSVPPage() {
         max_guests: maxGuests,
       });
 
-      setGuest({
-        ...guest,
-        rsvp_status: "attending",
-        men_count: menCount,
-        women_count: womenCount,
-        attending_count: totalAttending,
-      });
-
-      showAnimatedSuccess("RSVP submitted successfully.");
+      setGuest({ ...guest, rsvp_status: "attending", men_count: menCount, women_count: womenCount, attending_count: totalAttending });
+      showToast("RSVP confirmed — we can't wait to see you! 🎉");
       return;
     }
 
     if (status === "declined") {
       setSaving(true);
-
       const { error } = await supabase
         .from("guests")
-        .update({
-          rsvp_status: "declined",
-          men_count: 0,
-          women_count: 0,
-          attending_count: 0,
-          attending_names: null,
-        })
+        .update({ rsvp_status: "declined", men_count: 0, women_count: 0, attending_count: 0, attending_names: null })
         .eq("token", token);
-
       setSaving(false);
 
-      if (error) {
-        showAnimatedSuccess("Could not save RSVP. Please try again.");
-        return;
-      }
+      if (error) { showToast("Could not save RSVP. Please try again.", "error"); return; }
 
       await notify({
         invite_name: guest.invite_name,
@@ -163,228 +179,255 @@ export default function RSVPPage() {
         max_guests: maxGuests,
       });
 
-      setGuest({
-        ...guest,
-        rsvp_status: "declined",
-        men_count: 0,
-        women_count: 0,
-        attending_count: 0,
-      });
-
-      showAnimatedSuccess("RSVP submitted successfully.");
+      setGuest({ ...guest, rsvp_status: "declined", men_count: 0, women_count: 0, attending_count: 0 });
+      showToast("Response recorded. We'll miss you!");
     }
   };
 
   const handleChangeResponse = () => {
     if (!changesOpen) return;
-    setGuest((prev) => ({
-      ...prev,
-      rsvp_status: "pending",
-    }));
+    setGuest((prev) => ({ ...prev, rsvp_status: "pending" }));
     setStatus("pending");
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f4f1eb] text-[#4b4338]">
-        Loading...
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4" style={{ background: "var(--bg)" }}>
+        <div className="h-10 w-10 rounded-full border-2 animate-spin" style={{ borderColor: "var(--gold)", borderTopColor: "transparent" }} />
+        <p className="text-sm tracking-widest" style={{ color: "var(--text-faint)", fontFamily: "var(--font-body)" }}>
+          Loading invitation…
+        </p>
       </div>
     );
   }
 
   if (!guest) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f4f1eb] px-6">
-        <div className="w-full max-w-lg rounded-[36px] bg-white p-10 text-center shadow-[0_15px_40px_rgba(0,0,0,0.08)]">
-          <h1 className="text-2xl font-semibold text-[#3d342b]">
+      <div className="min-h-screen flex items-center justify-center px-6" style={{ background: "var(--bg)" }}>
+        <div className="w-full max-w-md rounded-3xl p-10 text-center" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+          <p className="text-3xl mb-4" aria-hidden="true">✉️</p>
+          <h1 className="text-2xl mb-3" style={{ fontFamily: "var(--font-display)", fontWeight: 500, color: "var(--text)" }}>
             Invitation Not Found
           </h1>
-          <p className="mt-3 text-[#6e665d]">
-            This RSVP link is invalid or no longer available.
+          <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>
+            This RSVP link is invalid or no longer available. Please contact the couple for assistance.
           </p>
         </div>
       </div>
     );
   }
 
-  const alreadyResponded =
-    guest.rsvp_status && guest.rsvp_status !== "pending";
+  const alreadyResponded = guest.rsvp_status && guest.rsvp_status !== "pending";
+
+  const toastColors = {
+    success: { bg: "#edf8f0", border: "#c3e6cb", text: "#1f5c30" },
+    error:   { bg: "#fef2f2", border: "#fecaca", text: "#7f1d1d" },
+    info:    { bg: "#fef9ec", border: "#f6d860", text: "#78510a" },
+  };
 
   return (
-    <div className="min-h-screen bg-[#f4f1eb] px-4 py-10 md:px-6">
-      <div className="mx-auto w-full max-w-5xl">
-        <div className="mx-auto w-full max-w-4xl rounded-[38px] border border-[#ece7df] bg-white px-6 py-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)] md:px-10 md:py-10">
-          <div className="mb-8 flex justify-center">
-            <img
-              src="/rsvp.png"
-              alt="RSVP"
-              className="w-[240px] md:w-[360px] object-contain"
-            />
+    <div className="min-h-screen px-4 py-12 md:px-6" style={{ background: "var(--bg)" }}>
+
+      {/* Toast */}
+      {toast.show && (
+        <div
+          role="alert"
+          className="fixed top-5 left-1/2 z-50 -translate-x-1/2 rounded-2xl px-6 py-3 text-sm text-center shadow-md"
+          style={{
+            background: toastColors[toast.type].bg,
+            border: `1px solid ${toastColors[toast.type].border}`,
+            color: toastColors[toast.type].text,
+            fontFamily: "var(--font-body)",
+            animation: "fadeSlide 0.3s ease-out both",
+            minWidth: "260px",
+            maxWidth: "90vw",
+          }}
+        >
+          {toast.message}
+        </div>
+      )}
+
+      <div className="mx-auto w-full max-w-2xl">
+        <div
+          className="rounded-[2rem] overflow-hidden"
+          style={{
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
+            boxShadow: "0 20px 60px rgba(0,0,0,0.07), 0 4px 16px rgba(0,0,0,0.04)",
+          }}
+        >
+          {/* Header */}
+          <div
+            className="px-8 pt-10 pb-8 text-center"
+            style={{ background: "linear-gradient(160deg, #faf7f2 0%, #f4ede2 100%)", borderBottom: "1px solid var(--border)" }}
+          >
+            <div className="mb-6 flex justify-center">
+              <img src="/rsvp.png" alt="Ayman & Abdul Bari Wedding" className="w-[200px] md:w-[270px] object-contain" loading="lazy" />
+            </div>
+            <Ornament className="mx-auto mb-5 w-28 opacity-40" style={{ color: "var(--gold)" }} />
+            <p className="mb-1 text-xs font-medium uppercase tracking-[0.3em]" style={{ color: "var(--gold)", fontFamily: "var(--font-body)" }}>
+              Wedding Invitation
+            </p>
+            <p className="text-sm font-light" style={{ color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>
+              Please kindly respond by <strong style={{ color: "var(--text)", fontWeight: 500 }}>May 3rd, 2026</strong>
+            </p>
           </div>
 
-          <p className="mb-8 text-center text-[15px] text-[#5f5a54] md:text-[17px]">
-            Please kindly respond for the wedding of Ayman & Abdul Bari by May
-            3rd 2026.
-          </p>
+          {/* Body */}
+          <div className="px-6 py-8 md:px-10 md:py-10">
 
-          <div className="mb-8 rounded-[28px] border border-[#ebe6de] bg-[#fcfbf8] px-6 py-8 text-center shadow-[inset_0_0_0_1px_rgba(255,255,255,0.3)]">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.45em] text-[#8b8175]">
-              Invitation For
-            </p>
-
-            <h2
-              className="mx-auto max-w-3xl text-3xl font-semibold leading-tight text-[#2f2a24] md:text-5xl"
-              style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
+            {/* Invitation For card */}
+            <div
+              className="mb-8 rounded-2xl px-6 py-7 text-center"
+              style={{ background: "linear-gradient(135deg, #fdfcf9 0%, #f9f5ef 100%)", border: "1px solid var(--border)" }}
             >
-              {guest.invite_name || guest.family}
-            </h2>
-
-            <p className="mt-5 text-[17px] text-[#6a635c]">
-              Total invited from your family:{" "}
-              <span className="font-semibold text-[#2f2a24]">{maxGuests}</span>
-            </p>
-          </div>
-
-          {showSuccess && (
-            <div className="mb-6 animate-[fadeSlide_0.35s_ease-out] rounded-2xl border border-[#d7eadb] bg-[#edf8f0] px-5 py-4 text-center text-[#2e6a40] shadow-sm">
-              {successMessage}
-            </div>
-          )}
-
-          {alreadyResponded ? (
-            <div className="text-center">
-              <p className="mb-4 text-lg text-[#514a42]">
-                Your response has been recorded.
+              <p className="mb-3 text-xs font-medium uppercase tracking-[0.4em]" style={{ color: "var(--text-faint)", fontFamily: "var(--font-body)" }}>
+                Invitation For
               </p>
-
-              <div className="mx-auto mb-5 inline-block rounded-full bg-[#efe6d8] px-6 py-3 text-lg font-semibold text-[#69553a]">
-                {guest.rsvp_status === "attending"
-                  ? `Attending (${guest.attending_count || 0})`
-                  : "Not Attending"}
-              </div>
-
-              {guest.rsvp_status === "attending" && (
-                <div className="mx-auto mt-3 max-w-2xl rounded-[24px] border border-[#ebe6de] bg-[#fcfbf8] p-5 text-left">
-                  <p className="mb-2 text-[#5a534a]">
-                    Men attending:{" "}
-                    <span className="font-semibold text-[#2f2a24]">
-                      {guest.men_count || 0}
-                    </span>
-                  </p>
-                  <p className="text-[#5a534a]">
-                    Women attending:{" "}
-                    <span className="font-semibold text-[#2f2a24]">
-                      {guest.women_count || 0}
-                    </span>
-                  </p>
-                </div>
-              )}
-
-              {changesOpen ? (
-                <button
-                  onClick={handleChangeResponse}
-                  className="mt-7 rounded-full bg-[#b7a48d] px-7 py-3 font-semibold text-white transition hover:bg-[#a18d75]"
+              <h2
+                className="leading-tight"
+                style={{ fontFamily: "var(--font-display)", fontSize: "clamp(1.8rem, 5vw, 3rem)", fontWeight: 500, color: "var(--text)" }}
+              >
+                {guest.invite_name || guest.family}
+              </h2>
+              <div className="mt-4 flex justify-center">
+                <span
+                  className="rounded-full px-4 py-1 text-sm font-medium"
+                  style={{ background: "#f0e9df", color: "var(--gold-dark)", fontFamily: "var(--font-body)" }}
                 >
-                  Change RSVP
-                </button>
-              ) : (
-                <p className="mt-6 text-sm text-[#8a8176]">
-                  RSVP changes are now closed.
-                </p>
-              )}
+                  {maxGuests} {maxGuests === 1 ? "guest" : "guests"} invited
+                </span>
+              </div>
             </div>
-          ) : (
-            <div className="mx-auto max-w-3xl">
-              <div className="mb-6">
-                <label className="mb-3 block text-left text-lg font-medium text-[#2f2a24]">
-                  Will you be attending?
-                </label>
 
-                <select
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                  className="w-full rounded-2xl border border-[#ddd6cc] bg-white px-5 py-4 text-lg text-black outline-none transition focus:border-[#b8a58f]"
-                >
-                  <option value="pending">Select one</option>
-                  <option value="attending">Attending</option>
-                  <option value="declined">Not Attending</option>
-                </select>
-              </div>
-
-              {status === "attending" && (
-                <>
-                  <div className="mb-6">
-                    <label className="mb-3 block text-left text-lg font-medium text-[#2f2a24]">
-                      How many men will attend?
-                    </label>
-
-                    <input
-                      type="number"
-                      min="0"
-                      max={maxGuests}
-                      value={menCount}
-                      onChange={(e) =>
-                        setMenCount(Math.max(0, Number(e.target.value) || 0))
-                      }
-                      className="w-full rounded-2xl border border-[#ddd6cc] bg-white px-5 py-4 text-lg text-black outline-none transition focus:border-[#b8a58f]"
-                    />
-                  </div>
-
-                  <div className="mb-6">
-                    <label className="mb-3 block text-left text-lg font-medium text-[#2f2a24]">
-                      How many women will attend?
-                    </label>
-
-                    <input
-                      type="number"
-                      min="0"
-                      max={maxGuests}
-                      value={womenCount}
-                      onChange={(e) =>
-                        setWomenCount(Math.max(0, Number(e.target.value) || 0))
-                      }
-                      className="w-full rounded-2xl border border-[#ddd6cc] bg-white px-5 py-4 text-lg text-black outline-none transition focus:border-[#b8a58f]"
-                    />
-
-                    <p className="mt-2 text-sm text-[#7c746b]">
-                      Total attending: {totalAttending} / {maxGuests}
+            {/* Already responded */}
+            {alreadyResponded ? (
+              <div className="text-center">
+                {guest.rsvp_status === "attending" ? (
+                  <>
+                    <div
+                      className="mb-2 inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-medium"
+                      style={{ background: "#edf8f0", color: "#2e6a40", border: "1px solid #c3e6cb", fontFamily: "var(--font-body)" }}
+                    >
+                      <span>✓</span> Attending
+                    </div>
+                    <p className="mb-6 text-sm" style={{ color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>
+                      Your RSVP is confirmed.
                     </p>
-                  </div>
-                </>
-              )}
+                    <div className="mx-auto mb-6 grid max-w-xs grid-cols-2 gap-3">
+                      {[{ label: "Men", value: guest.men_count || 0 }, { label: "Women", value: guest.women_count || 0 }].map(({ label, value }) => (
+                        <div key={label} className="rounded-2xl px-5 py-4 text-center" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
+                          <p className="mb-1 text-xs uppercase tracking-widest" style={{ color: "var(--text-faint)", fontFamily: "var(--font-body)" }}>{label}</p>
+                          <p className="text-3xl font-light" style={{ fontFamily: "var(--font-display)", color: "var(--text)" }}>{value}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div
+                      className="mb-2 inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-medium"
+                      style={{ background: "#fef2f2", color: "#9b1c1c", border: "1px solid #fecaca", fontFamily: "var(--font-body)" }}
+                    >
+                      Not Attending
+                    </div>
+                    <p className="mb-6 text-sm" style={{ color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>
+                      We'll miss you. Thank you for letting us know.
+                    </p>
+                  </>
+                )}
 
-              <div className="flex justify-center">
+                {changesOpen ? (
+                  <button
+                    onClick={handleChangeResponse}
+                    className="rounded-full px-7 py-2.5 text-sm font-medium transition hover:opacity-80 active:scale-95"
+                    style={{ border: "1px solid var(--border)", color: "var(--text-muted)", fontFamily: "var(--font-body)", background: "white" }}
+                  >
+                    Change Response
+                  </button>
+                ) : (
+                  <p className="text-xs" style={{ color: "var(--text-faint)", fontFamily: "var(--font-body)" }}>
+                    RSVP changes are now closed.
+                  </p>
+                )}
+              </div>
+            ) : (
+              /* RSVP form */
+              <div>
+                <p className="mb-4 text-sm font-medium uppercase tracking-[0.2em]" style={{ color: "var(--text-faint)", fontFamily: "var(--font-body)" }}>
+                  Will you be attending?
+                </p>
+
+                <div className="mb-7 grid grid-cols-2 gap-3">
+                  {[
+                    { value: "attending", label: "Yes, I'll be there 🎉" },
+                    { value: "declined",  label: "Sorry, I can't make it" },
+                  ].map(({ value, label }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setStatus(value)}
+                      className="rounded-2xl px-4 py-4 text-sm font-medium transition-all active:scale-95"
+                      style={{
+                        fontFamily: "var(--font-body)",
+                        border: status === value ? "2px solid var(--gold)" : "1px solid var(--border)",
+                        background: status === value ? "#fdf7ee" : "white",
+                        color: status === value ? "var(--gold-dark)" : "var(--text-muted)",
+                        boxShadow: status === value ? "0 0 0 3px rgba(184,150,106,0.12)" : "none",
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                {status === "attending" && (
+                  <div className="mb-7">
+                    <Stepper label="Men attending" value={menCount} onChange={setMenCount} max={maxGuests} />
+                    <Stepper label="Women attending" value={womenCount} onChange={setWomenCount} max={maxGuests} />
+                    <div
+                      className="rounded-xl px-4 py-3 text-center text-sm"
+                      style={{
+                        background: totalAttending > maxGuests ? "#fef2f2" : "#f4f8f5",
+                        color: totalAttending > maxGuests ? "#9b1c1c" : "#2e6a40",
+                        border: `1px solid ${totalAttending > maxGuests ? "#fecaca" : "#c3e6cb"}`,
+                        fontFamily: "var(--font-body)",
+                      }}
+                    >
+                      {totalAttending > maxGuests
+                        ? `⚠ Exceeds limit of ${maxGuests}`
+                        : `Total attending: ${totalAttending} / ${maxGuests}`}
+                    </div>
+                  </div>
+                )}
+
                 <button
                   onClick={handleSubmit}
-                  disabled={saving || !changesOpen}
-                  className="rounded-full bg-[#b7a48d] px-10 py-4 text-lg font-semibold text-white shadow-sm transition hover:bg-[#a18d75] disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={saving || !changesOpen || status === "pending"}
+                  className="w-full rounded-full py-4 text-sm font-medium tracking-wide text-white transition-all hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+                  style={{ background: "var(--gold)", fontFamily: "var(--font-body)", letterSpacing: "0.06em" }}
                 >
-                  {saving ? "Saving..." : "Submit RSVP"}
+                  {saving ? "Saving…" : "Confirm RSVP"}
                 </button>
-              </div>
 
-              {!changesOpen && (
-                <p className="mt-4 text-center text-sm text-[#8a8176]">
-                  RSVP submissions and changes are closed.
-                </p>
-              )}
-            </div>
-          )}
+                {!changesOpen && (
+                  <p className="mt-3 text-center text-xs" style={{ color: "var(--text-faint)", fontFamily: "var(--font-body)" }}>
+                    RSVP submissions are now closed.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="mt-8 text-center">
+          <Ornament className="mx-auto mb-4 w-24 opacity-20" style={{ color: "var(--gold)" }} />
+          <p className="text-xs tracking-wider" style={{ color: "var(--text-faint)", fontFamily: "var(--font-body)" }}>
+            Ayman &amp; Abdul Bari · 2026
+          </p>
         </div>
       </div>
-
-      <style jsx global>{`
-        @keyframes fadeSlide {
-          0% {
-            opacity: 0;
-            transform: translateY(10px) scale(0.98);
-          }
-          100% {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-        }
-      `}</style>
     </div>
   );
 }
