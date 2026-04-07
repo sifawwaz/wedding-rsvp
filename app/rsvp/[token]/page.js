@@ -87,7 +87,7 @@ function SplashScreen({ guestName, onEnter }) {
         className="mb-2 text-sm font-light tracking-widest"
         style={{ color: "var(--text-muted)", fontFamily: "var(--font-body)" }}
       >
-        Saturday · May 3rd, 2026
+        Thursday · May 21st, 2026
       </p>
 
       <Ornament className="mx-auto my-8 w-28 opacity-30" style={{ color: "var(--gold)" }} />
@@ -115,7 +115,7 @@ function SplashScreen({ guestName, onEnter }) {
         className="mb-10 max-w-sm text-sm font-light leading-relaxed"
         style={{ color: "var(--text-muted)", fontFamily: "var(--font-body)" }}
       >
-        We are overjoyed to have you join us on our special day. Please tap below to view your personal invitation and RSVP.
+      Assalamualaikum Warahmatullahi Wabarakatuh! We are overjoyed to have you join us on our special day. Please tap below to view your personal invitation and RSVP.
       </p>
 
       {/* CTA */}
@@ -245,7 +245,7 @@ export default function RSVPPage() {
       });
 
       setGuest({ ...guest, rsvp_status: "attending", men_count: menCount, women_count: womenCount, attending_count: totalAttending });
-      showToast("RSVP confirmed — we can't wait to see you! 🎉");
+      showToast("RSVP confirmed — we can't wait to see you, InshaAllah! 🎉");
       return;
     }
 
