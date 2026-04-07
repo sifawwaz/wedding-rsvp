@@ -422,7 +422,7 @@ export default function RSVPPage() {
                       <span>✓</span> Attending
                     </div>
                     <p className="mb-6 text-sm" style={{ color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>
-                      Your RSVP is confirmed.
+                      Your RSVP is confirmed. We cant wait to see you, InshaAllah!
                     </p>
                     <div className="mx-auto mb-6 grid max-w-xs grid-cols-2 gap-3">
                       {[{ label: "Men", value: guest.men_count || 0 }, { label: "Women", value: guest.women_count || 0 }].map(({ label, value }) => (
