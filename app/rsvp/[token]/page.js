@@ -49,6 +49,95 @@ function Stepper({ label, value, onChange, max }) {
   );
 }
 
+/* ── Splash / Welcome Screen ── */
+function SplashScreen({ guestName, onEnter }) {
+  return (
+    <div
+      className="min-h-screen flex flex-col items-center justify-center px-6 py-20 text-center"
+      style={{ background: "var(--bg)", animation: "fadeUp 0.7s ease-out both" }}
+    >
+      {/* Top ornament */}
+      <div className="mb-10 flex items-center gap-4" style={{ color: "var(--gold)" }}>
+        <span className="block h-px w-16 bg-[#b8966a] opacity-40" />
+        <span className="text-xl">✦</span>
+        <span className="block h-px w-16 bg-[#b8966a] opacity-40" />
+      </div>
+
+      <p
+        className="mb-4 text-xs font-medium uppercase tracking-[0.35em]"
+        style={{ color: "var(--gold)", fontFamily: "var(--font-body)" }}
+      >
+        You Are Cordially Invited
+      </p>
+
+      {/* Couple names */}
+      <h1
+        className="mb-2 leading-tight"
+        style={{
+          fontFamily: "var(--font-display)",
+          fontSize: "clamp(2.8rem, 7vw, 5.5rem)",
+          fontWeight: 400,
+          color: "var(--text)",
+        }}
+      >
+        Ayman &amp; <em style={{ fontStyle: "italic", color: "var(--gold-dark)" }}>AbdulBari</em>
+      </h1>
+
+      <p
+        className="mb-2 text-sm font-light tracking-widest"
+        style={{ color: "var(--text-muted)", fontFamily: "var(--font-body)" }}
+      >
+        Saturday · May 3rd, 2026
+      </p>
+
+      <Ornament className="mx-auto my-8 w-28 opacity-30" style={{ color: "var(--gold)" }} />
+
+      {/* Dear guest name */}
+      <p
+        className="mb-3 text-sm uppercase tracking-[0.25em]"
+        style={{ color: "var(--text-faint)", fontFamily: "var(--font-body)" }}
+      >
+        Dear
+      </p>
+      <p
+        className="mb-10 leading-none"
+        style={{
+          fontFamily: "'Great Vibes', cursive",
+          fontSize: "clamp(3rem, 8vw, 5.5rem)",
+          color: "var(--gold-dark)",
+          textShadow: "0 2px 12px rgba(154,122,82,0.15)",
+        }}
+      >
+        {guestName}
+      </p>
+
+      <p
+        className="mb-10 max-w-sm text-sm font-light leading-relaxed"
+        style={{ color: "var(--text-muted)", fontFamily: "var(--font-body)" }}
+      >
+        We are overjoyed to have you join us on our special day. Please tap below to view your personal invitation and RSVP.
+      </p>
+
+      {/* CTA */}
+      <button
+        onClick={onEnter}
+        className="rounded-full px-10 py-3.5 text-sm font-medium tracking-widest text-white transition-all hover:opacity-90 active:scale-95"
+        style={{ background: "var(--gold)", fontFamily: "var(--font-body)", letterSpacing: "0.1em" }}
+      >
+        VIEW MY INVITATION
+      </button>
+
+      {/* Bottom ornament */}
+      <div className="mt-12 flex items-center gap-3 opacity-20" style={{ color: "var(--gold)" }}>
+        <span className="block h-px w-10 bg-[#b8966a]" />
+        <span>✦</span>
+        <span className="block h-px w-10 bg-[#b8966a]" />
+      </div>
+    </div>
+  );
+}
+
+/* ── Main Page ── */
 export default function RSVPPage() {
   const params = useParams();
   const token = params?.token;
@@ -58,6 +147,7 @@ export default function RSVPPage() {
   const [guest, setGuest] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
 
   const [status, setStatus] = useState("pending");
   const [menCount, setMenCount] = useState(0);
@@ -190,6 +280,7 @@ export default function RSVPPage() {
     setStatus("pending");
   };
 
+  /* ── Loading ── */
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4" style={{ background: "var(--bg)" }}>
@@ -201,6 +292,7 @@ export default function RSVPPage() {
     );
   }
 
+  /* ── Not found ── */
   if (!guest) {
     return (
       <div className="min-h-screen flex items-center justify-center px-6" style={{ background: "var(--bg)" }}>
@@ -217,6 +309,7 @@ export default function RSVPPage() {
     );
   }
 
+  const guestName = guest.invite_name || guest.family || "Guest";
   const alreadyResponded = guest.rsvp_status && guest.rsvp_status !== "pending";
 
   const toastColors = {
@@ -225,8 +318,20 @@ export default function RSVPPage() {
     info:    { bg: "#fef9ec", border: "#f6d860", text: "#78510a" },
   };
 
+  /* ── Splash screen ── */
+  if (showSplash) {
+    return (
+      <>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap" />
+        <SplashScreen guestName={guestName} onEnter={() => setShowSplash(false)} />
+      </>
+    );
+  }
+
+  /* ── RSVP Card ── */
   return (
-    <div className="min-h-screen px-4 py-12 md:px-6" style={{ background: "var(--bg)" }}>
+    <div className="min-h-screen px-4 py-12 md:px-6" style={{ background: "var(--bg)", animation: "fadeUp 0.5s ease-out both" }}>
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap" />
 
       {/* Toast */}
       {toast.show && (
@@ -262,7 +367,7 @@ export default function RSVPPage() {
             style={{ background: "linear-gradient(160deg, #faf7f2 0%, #f4ede2 100%)", borderBottom: "1px solid var(--border)" }}
           >
             <div className="mb-6 flex justify-center">
-              <img src="/rsvp.png" alt="Ayman & Abdul Bari Wedding" className="w-[200px] md:w-[270px] object-contain" loading="lazy" />
+              <img src="/rsvp.png" alt="Ayman & AbdulBari Wedding" className="w-[200px] md:w-[270px] object-contain" loading="lazy" />
             </div>
             <Ornament className="mx-auto mb-5 w-28 opacity-40" style={{ color: "var(--gold)" }} />
             <p className="mb-1 text-xs font-medium uppercase tracking-[0.3em]" style={{ color: "var(--gold)", fontFamily: "var(--font-body)" }}>
@@ -281,15 +386,20 @@ export default function RSVPPage() {
               className="mb-8 rounded-2xl px-6 py-7 text-center"
               style={{ background: "linear-gradient(135deg, #fdfcf9 0%, #f9f5ef 100%)", border: "1px solid var(--border)" }}
             >
-              <p className="mb-3 text-xs font-medium uppercase tracking-[0.4em]" style={{ color: "var(--text-faint)", fontFamily: "var(--font-body)" }}>
+              <p className="mb-2 text-xs font-medium uppercase tracking-[0.4em]" style={{ color: "var(--text-faint)", fontFamily: "var(--font-body)" }}>
                 Invitation For
               </p>
-              <h2
-                className="leading-tight"
-                style={{ fontFamily: "var(--font-display)", fontSize: "clamp(1.8rem, 5vw, 3rem)", fontWeight: 500, color: "var(--text)" }}
+              <p
+                className="leading-none"
+                style={{
+                  fontFamily: "'Great Vibes', cursive",
+                  fontSize: "clamp(2.8rem, 8vw, 5rem)",
+                  color: "var(--gold-dark)",
+                  textShadow: "0 2px 16px rgba(154,122,82,0.18)",
+                }}
               >
-                {guest.invite_name || guest.family}
-              </h2>
+                {guestName}
+              </p>
               <div className="mt-4 flex justify-center">
                 <span
                   className="rounded-full px-4 py-1 text-sm font-medium"
@@ -424,7 +534,7 @@ export default function RSVPPage() {
         <div className="mt-8 text-center">
           <Ornament className="mx-auto mb-4 w-24 opacity-20" style={{ color: "var(--gold)" }} />
           <p className="text-xs tracking-wider" style={{ color: "var(--text-faint)", fontFamily: "var(--font-body)" }}>
-            Ayman &amp; Abdul Bari · 2026
+            Ayman &amp; AbdulBari · 2026
           </p>
         </div>
       </div>
